@@ -1,4 +1,4 @@
-package proxy
+package provider
 
 // SingleProxyProvider 单个代理提供者（不使用IP池）
 type SingleProxyProvider struct {

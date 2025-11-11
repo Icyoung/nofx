@@ -5,13 +5,16 @@ import { EquityChart } from './components/EquityChart'
 import { AITradersPage } from './components/AITradersPage'
 import { LoginPage } from './components/LoginPage'
 import { RegisterPage } from './components/RegisterPage'
+import { ResetPasswordPage } from './components/ResetPasswordPage'
 import { CompetitionPage } from './components/CompetitionPage'
 import { LandingPage } from './pages/LandingPage'
+import { FAQPage } from './pages/FAQPage'
 import HeaderBar from './components/landing/HeaderBar'
 import AILearning from './components/AILearning'
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { t, type Language } from './i18n/translations'
+import { useSystemConfig } from './hooks/useSystemConfig'
 import { AlertTriangle } from 'lucide-react'
 import type {
   SystemStatus,
@@ -41,7 +44,7 @@ function getModelDisplayName(modelId: string): string {
 function App() {
   const { language, setLanguage } = useLanguage()
   const { user, token, logout, isLoading } = useAuth()
-  const configLoading = false
+  const { loading: configLoading } = useSystemConfig()
   const [route, setRoute] = useState(window.location.pathname)
 
   // 从URL路径读取初始页面状态（支持刷新保持页面）
@@ -98,11 +101,12 @@ function App() {
   // };
 
   // 获取trader列表（仅在用户登录时）
-  const { data: traders } = useSWR<TraderInfo[]>(
+  const { data: traders, error: tradersError } = useSWR<TraderInfo[]>(
     user && token ? 'traders' : null,
     api.getTraders,
     {
       refreshInterval: 10000,
+      shouldRetryOnError: false, // 避免在后端未运行时无限重试
     }
   )
 
@@ -229,6 +233,12 @@ function App() {
   if (route === '/register') {
     return <RegisterPage />
   }
+  if (route === '/faq') {
+    return <FAQPage />
+  }
+  if (route === '/reset-password') {
+    return <ResetPasswordPage />
+  }
   if (route === '/competition') {
     return (
       <div
@@ -261,6 +271,10 @@ function App() {
               window.history.pushState({}, '', '/dashboard')
               setRoute('/dashboard')
               setCurrentPage('trader')
+            } else if (page === 'faq') {
+              console.log('Navigating to faq')
+              window.history.pushState({}, '', '/faq')
+              setRoute('/faq')
             }
 
             console.log(
@@ -316,6 +330,9 @@ function App() {
             window.history.pushState({}, '', '/dashboard')
             setRoute('/dashboard')
             setCurrentPage('trader')
+          } else if (page === 'faq') {
+            window.history.pushState({}, '', '/faq')
+            setRoute('/faq')
           }
         }}
       />
@@ -344,8 +361,14 @@ function App() {
             lastUpdate={lastUpdate}
             language={language}
             traders={traders}
+            tradersError={tradersError}
             selectedTraderId={selectedTraderId}
             onTraderSelect={setSelectedTraderId}
+            onNavigateToTraders={() => {
+              window.history.pushState({}, '', '/traders')
+              setRoute('/traders')
+              setCurrentPage('traders')
+            }}
           />
         )}
       </main>
@@ -410,13 +433,17 @@ function TraderDetailsPage({
   lastUpdate,
   language,
   traders,
+  tradersError,
   selectedTraderId,
   onTraderSelect,
+  onNavigateToTraders,
 }: {
   selectedTrader?: TraderInfo
   traders?: TraderInfo[]
+  tradersError?: Error
   selectedTraderId?: string
   onTraderSelect: (traderId: string) => void
+  onNavigateToTraders: () => void
   status?: SystemStatus
   account?: AccountInfo
   positions?: Position[]
@@ -425,6 +452,119 @@ function TraderDetailsPage({
   lastUpdate: string
   language: Language
 }) {
+  // If API failed with error, show empty state (likely backend not running)
+  if (tradersError) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md mx-auto px-6">
+          {/* Icon */}
+          <div
+            className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center"
+            style={{
+              background: 'rgba(240, 185, 11, 0.1)',
+              border: '2px solid rgba(240, 185, 11, 0.3)',
+            }}
+          >
+            <svg
+              className="w-12 h-12"
+              style={{ color: '#F0B90B' }}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+
+          {/* Title */}
+          <h2 className="text-2xl font-bold mb-3" style={{ color: '#EAECEF' }}>
+            {t('dashboardEmptyTitle', language)}
+          </h2>
+
+          {/* Description */}
+          <p className="text-base mb-6" style={{ color: '#848E9C' }}>
+            {t('dashboardEmptyDescription', language)}
+          </p>
+
+          {/* CTA Button */}
+          <button
+            onClick={onNavigateToTraders}
+            className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+              color: '#0B0E11',
+              boxShadow: '0 4px 12px rgba(240, 185, 11, 0.3)',
+            }}
+          >
+            {t('goToTradersPage', language)}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // If traders is loaded and empty, show empty state
+  if (traders && traders.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md mx-auto px-6">
+          {/* Icon */}
+          <div
+            className="w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center"
+            style={{
+              background: 'rgba(240, 185, 11, 0.1)',
+              border: '2px solid rgba(240, 185, 11, 0.3)',
+            }}
+          >
+            <svg
+              className="w-12 h-12"
+              style={{ color: '#F0B90B' }}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              />
+            </svg>
+          </div>
+
+          {/* Title */}
+          <h2 className="text-2xl font-bold mb-3" style={{ color: '#EAECEF' }}>
+            {t('dashboardEmptyTitle', language)}
+          </h2>
+
+          {/* Description */}
+          <p className="text-base mb-6" style={{ color: '#848E9C' }}>
+            {t('dashboardEmptyDescription', language)}
+          </p>
+
+          {/* CTA Button */}
+          <button
+            onClick={onNavigateToTraders}
+            className="px-6 py-3 rounded-lg font-semibold transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: 'linear-gradient(135deg, #F0B90B 0%, #FCD535 100%)',
+              color: '#0B0E11',
+              boxShadow: '0 4px 12px rgba(240, 185, 11, 0.3)',
+            }}
+          >
+            {t('goToTradersPage', language)}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // If traders is still loading or selectedTrader is not ready, show skeleton
   if (!selectedTrader) {
     return (
       <div className="space-y-6">
@@ -1036,12 +1176,17 @@ function DecisionCard({
             保证金率: {decision.account_state.margin_used_pct.toFixed(1)}%
           </span>
           <span>持仓: {decision.account_state.position_count}</span>
-          <span style={{
-            color: decision.candidate_coins && decision.candidate_coins.length === 0
-              ? '#F6465D'
-              : '#848E9C'
-          }}>
-            {t('candidateCoins', language)}: {decision.candidate_coins?.length || 0}
+          <span
+            style={{
+              color:
+                decision.candidate_coins &&
+                decision.candidate_coins.length === 0
+                  ? '#F6465D'
+                  : '#848E9C',
+            }}
+          >
+            {t('candidateCoins', language)}:{' '}
+            {decision.candidate_coins?.length || 0}
           </span>
         </div>
       )}
@@ -1053,12 +1198,14 @@ function DecisionCard({
           style={{
             background: 'rgba(246, 70, 93, 0.1)',
             border: '1px solid rgba(246, 70, 93, 0.3)',
-            color: '#F6465D'
+            color: '#F6465D',
           }}
         >
           <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <div className="font-semibold mb-1">⚠️ {t('candidateCoinsZeroWarning', language)}</div>
+            <div className="font-semibold mb-1">
+              ⚠️ {t('candidateCoinsZeroWarning', language)}
+            </div>
             <div className="text-xs space-y-1" style={{ color: '#848E9C' }}>
               <div>{t('possibleReasons', language)}</div>
               <ul className="list-disc list-inside space-y-0.5 ml-2">

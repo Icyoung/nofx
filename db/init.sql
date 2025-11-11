@@ -164,8 +164,7 @@ INSERT INTO system_config (key, value) VALUES
 ('max_drawdown', '20.0'),
 ('stop_trading_minutes', '60'),
 ('btc_eth_leverage', '5'),
-('altcoin_leverage', '5'),
-('jwt_secret', '')
+('altcoin_leverage', '5')
 ON CONFLICT (key) DO NOTHING;
 
 -- 数据库迁移：添加 deleted 字段到现有 ai_models 表

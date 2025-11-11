@@ -421,6 +421,10 @@ docker compose up -d
    df -h  # 确保磁盘未满
    ```
 
+3. **数据库完整性:**
+   ```bash
+   sqlite3 config.db "PRAGMA integrity_check;"
+   ```
 ---
 
 ## 📊 如何捕获日志
@@ -438,7 +442,6 @@ docker compose logs -f backend
 # 保存到文件
 docker compose logs backend --tail=500 > backend_logs.txt
 ```
-
 **手动运行:**
 ```bash
 # 如果不是通过 Docker，而是手动运行 ./nofx，可直接在终端查看日志

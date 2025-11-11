@@ -1,14 +1,14 @@
-package proxy
+package provider
 
 import "strings"
 
-// FixedIPProvider 固定IP列表提供者
-type FixedIPProvider struct {
+// PoolProvider 固定IP列表提供者（代理池）
+type PoolProvider struct {
 	ips []ProxyIP
 }
 
-// NewFixedIPProvider 创建固定IP列表提供者
-func NewFixedIPProvider(proxyURLs []string) *FixedIPProvider {
+// NewPoolProvider 创建固定IP列表提供者
+func NewPoolProvider(proxyURLs []string) *PoolProvider {
 	ips := make([]ProxyIP, 0, len(proxyURLs))
 	for _, proxyURL := range proxyURLs {
 		// 简单解析代理URL
@@ -30,13 +30,13 @@ func NewFixedIPProvider(proxyURLs []string) *FixedIPProvider {
 		})
 	}
 
-	return &FixedIPProvider{ips: ips}
+	return &PoolProvider{ips: ips}
 }
 
-func (p *FixedIPProvider) GetIPList() ([]ProxyIP, error) {
+func (p *PoolProvider) GetIPList() ([]ProxyIP, error) {
 	return p.ips, nil
 }
 
-func (p *FixedIPProvider) RefreshIPList() ([]ProxyIP, error) {
+func (p *PoolProvider) RefreshIPList() ([]ProxyIP, error) {
 	return p.ips, nil
 }

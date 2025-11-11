@@ -7,89 +7,187 @@ on:
       - dev
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
-      - dev
   workflow_dispatch:
 
 env:
   REGISTRY_GHCR: ghcr.io
-  IMAGE_NAME_BACKEND: ${{ github.repository }}/nofx-backend
-  IMAGE_NAME_FRONTEND: ${{ github.repository }}/nofx-frontend
 
 jobs:
-  build-and-push:
+  # 预处理: 转换镜像名为小写
+  prepare:
     runs-on: ubuntu-22.04
+    outputs:
+      image_base: ${{ steps.lowercase.outputs.image_base }}
+    steps:
+      - name: Convert repository name to lowercase
+        id: lowercase
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_base=${REPO_LOWER}" >> $GITHUB_OUTPUT
+          echo "Lowercase repository: ${REPO_LOWER}"
+
+  # 并行构建策略: 使用原生架构 runner 提升速度
+  # GitHub Actions 现在支持原生 ARM64 runner (ubuntu-22.04-arm)
+  build-and-push:
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-    
+
     strategy:
+      # 并行运行所有构建任务
+      fail-fast: false
       matrix:
         include:
+          # Backend builds
           - name: backend
             dockerfile: ./docker/Dockerfile.backend
             image_suffix: backend
+            platform: linux/amd64
+            arch_tag: amd64
+            runner: ubuntu-22.04
+          - name: backend
+            dockerfile: ./docker/Dockerfile.backend
+            image_suffix: backend
+            platform: linux/arm64
+            arch_tag: arm64
+            runner: ubuntu-22.04-arm  # 原生 ARM64 runner
+          # Frontend builds
           - name: frontend
             dockerfile: ./docker/Dockerfile.frontend
             image_suffix: frontend
-    
+            platform: linux/amd64
+            arch_tag: amd64
+            runner: ubuntu-22.04
+          - name: frontend
+            dockerfile: ./docker/Dockerfile.frontend
+            image_suffix: frontend
+            platform: linux/arm64
+            arch_tag: arm64
+            runner: ubuntu-22.04-arm  # 原生 ARM64 runner
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      
+
+      # 原生 ARM64 runner 不需要 QEMU 模拟
+      # 只在需要时设置 QEMU (理论上不需要,因为是原生构建)
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY_GHCR }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
         continue-on-error: true
-      
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ env.REGISTRY_GHCR }}/${{ github.repository }}/nofx-${{ matrix.image_suffix }}
+            ${{ env.REGISTRY_GHCR }}/${{ needs.prepare.outputs.image_base }}/nofx-${{ matrix.image_suffix }}
             ${{ secrets.DOCKERHUB_USERNAME && format('{0}/nofx-{1}', secrets.DOCKERHUB_USERNAME, matrix.image_suffix) || '' }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,prefix={{branch}}
-            type=raw,value=latest,enable={{is_default_branch}}
-      
-      - name: Build and push ${{ matrix.name }} image
+            type=ref,event=branch,suffix=-${{ matrix.arch_tag }}
+            type=semver,pattern={{version}},suffix=-${{ matrix.arch_tag }}
+            type=semver,pattern={{major}}.{{minor}},suffix=-${{ matrix.arch_tag }}
+            type=sha,prefix={{branch}}-,suffix=-${{ matrix.arch_tag }}
+
+      - name: Build and push ${{ matrix.name }}-${{ matrix.arch_tag }} image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          # 单独构建每个架构,4 个任务并行运行
+          platforms: ${{ matrix.platform }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # 使用架构特定的缓存
+          cache-from: type=gha,scope=${{ matrix.name }}-${{ matrix.arch_tag }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}-${{ matrix.arch_tag }}
           build-args: |
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
             VCS_REF=${{ github.sha }}
             VERSION=${{ github.ref_name }}
-      
+
       - name: Image digest
-        run: echo "Image digest for ${{ matrix.name }} - ${{ steps.meta.outputs.digest }}"
+        run: |
+          echo "✅ Built: ${{ matrix.name }}-${{ matrix.arch_tag }}"
+          echo "Platform: ${{ matrix.platform }}"
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
+
+  # 合并多架构镜像为统一 manifest
+  create-manifest:
+    needs: [prepare, build-and-push]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        image_suffix: [backend, frontend]
+
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_GHCR }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Create and push multi-arch manifest
+        run: |
+          # 提取分支/标签名
+          REF_NAME="${{ github.ref_name }}"
+
+          # GHCR manifest (使用小写仓库名)
+          REPO_LOWER="${{ needs.prepare.outputs.image_base }}"
+          GHCR_IMAGE="${{ env.REGISTRY_GHCR }}/${REPO_LOWER}/nofx-${{ matrix.image_suffix }}"
+
+          echo "📦 Creating manifest for ${{ matrix.image_suffix }}..."
+          echo "Repository: ${REPO_LOWER}"
+          echo "Image: ${GHCR_IMAGE}"
+
+          # 创建并推送 manifest (合并 amd64 和 arm64)
+          docker buildx imagetools create -t "${GHCR_IMAGE}:${REF_NAME}" \
+            "${GHCR_IMAGE}:${REF_NAME}-amd64" \
+            "${GHCR_IMAGE}:${REF_NAME}-arm64"
+
+          # 如果是主分支,也创建 latest 标签
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+            docker buildx imagetools create -t "${GHCR_IMAGE}:latest" \
+              "${GHCR_IMAGE}:${REF_NAME}-amd64" \
+              "${GHCR_IMAGE}:${REF_NAME}-arm64"
+            echo "✅ Created latest tag"
+          fi
+
+          # Docker Hub manifest (如果配置了)
+          if [[ -n "${{ secrets.DOCKERHUB_USERNAME }}" ]]; then
+            DOCKERHUB_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/nofx-${{ matrix.image_suffix }}"
+            docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${REF_NAME}" \
+              "${DOCKERHUB_IMAGE}:${REF_NAME}-amd64" \
+              "${DOCKERHUB_IMAGE}:${REF_NAME}-arm64" || true
+            echo "✅ Created Docker Hub manifest"
+          fi
+
+          echo "🎉 Multi-arch manifest created successfully!"

@@ -43,5 +43,9 @@ func GetTransport() *http.Transport {
 		log.Printf("⚠️  获取代理客户端失败，使用直连: %v", err)
 		return &http.Transport{}
 	}
-	return client.Client.Transport.(*http.Transport)
+	if transport, ok := client.Client.Transport.(*http.Transport); ok {
+		return transport
+	}
+	log.Printf("⚠️  Transport类型断言失败，使用默认Transport")
+	return &http.Transport{}
 }

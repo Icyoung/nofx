@@ -112,9 +112,15 @@ export interface Exchange {
   name: string
   type: 'cex' | 'dex'
   enabled: boolean
+  apiKey?: string
+  secretKey?: string
   testnet?: boolean
-  hyperliquidWalletAddr?: string // 钱包地址，非敏感信息
-  asterUser?: string             // Aster用户名，非敏感信息
+  // Hyperliquid 特定字段
+  hyperliquidWalletAddr?: string
+  // Aster 特定字段
+  asterUser?: string
+  asterSigner?: string
+  asterPrivateKey?: string
   deleted: boolean
   created_at: string
   updated_at: string

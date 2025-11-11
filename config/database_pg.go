@@ -172,6 +172,12 @@ func (d *PostgreSQLDatabase) UpdateUserOTPVerified(userID string, verified bool)
 	return err
 }
 
+// UpdateUserPassword 更新用户密码
+func (d *PostgreSQLDatabase) UpdateUserPassword(userID, newPasswordHash string) error {
+	_, err := d.db.Exec(`UPDATE users SET password_hash = $1 WHERE id = $2`, newPasswordHash, userID)
+	return err
+}
+
 // GetAIModels 获取用户的AI模型配置
 func (d *PostgreSQLDatabase) GetAIModels(userID string) ([]*AIModelConfig, error) {
 	rows, err := d.db.Query(`

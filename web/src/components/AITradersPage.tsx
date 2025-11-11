@@ -13,7 +13,10 @@ import { useAuth } from '../contexts/AuthContext'
 import { getExchangeIcon } from './ExchangeIcons'
 import { getModelIcon } from './ModelIcons'
 import { TraderConfigModal } from './TraderConfigModal'
-import { TwoStageKeyModal } from './TwoStageKeyModal'
+import {
+  TwoStageKeyModal,
+  type TwoStageKeyModalResult,
+} from './TwoStageKeyModal'
 import {
   Bot,
   Brain,
@@ -25,6 +28,7 @@ import {
   AlertTriangle,
   BookOpen,
   HelpCircle,
+  Radio,
 } from 'lucide-react'
 
 // 获取友好的AI模型名称
@@ -47,12 +51,6 @@ function getShortName(fullName: string): string {
   return parts.length > 1 ? parts[parts.length - 1] : fullName
 }
 
-function maskSecret(value: string): string {
-  if (!value) return ''
-  const length = Math.min(value.length, 16)
-  return '•'.repeat(length)
-}
-
 interface AITradersPageProps {
   onTraderSelect?: (traderId: string) => void
 }
@@ -65,8 +63,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   const [showModelModal, setShowModelModal] = useState(false)
   const [showExchangeModal, setShowExchangeModal] = useState(false)
   const [showSignalSourceModal, setShowSignalSourceModal] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<{type: 'model' | 'exchange', id: string} | null>(null)
   const [editingModel, setEditingModel] = useState<string | null>(null)
   const [editingExchange, setEditingExchange] = useState<string | null>(null)
   const [editingTrader, setEditingTrader] = useState<any>(null)
@@ -140,32 +136,82 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     loadConfigs()
   }, [user, token])
 
-  // 显示所有用户的模型和交易所配置（用于调试）
-  const configuredModels = allModels || []
-  const configuredExchanges = allExchanges || []
+  // 只显示已配置的模型和交易所
+  // 注意：后端返回的数据不包含敏感信息（apiKey等），所以通过其他字段判断是否已配置
+  const configuredModels =
+    allModels?.filter((m) => {
+      // 如果模型已启用，说明已配置
+      // 或者有自定义API URL，也说明已配置
+      return m.enabled || (m.customApiUrl && m.customApiUrl.trim() !== '')
+    }) || []
+  const configuredExchanges =
+    allExchanges?.filter((e) => {
+      // Aster 交易所检查特殊字段
+      if (e.id === 'aster') {
+        return e.asterUser && e.asterUser.trim() !== ''
+      }
+      // Hyperliquid 需要检查钱包地址（后端会返回这个字段）
+      if (e.id === 'hyperliquid') {
+        return e.hyperliquidWalletAddr && e.hyperliquidWalletAddr.trim() !== ''
+      }
+      // 其他交易所：如果已启用，说明已配置（后端返回的已配置交易所会有 enabled: true）
+      return e.enabled
+    }) || []
 
   // 只在创建交易员时使用已启用且配置完整的
-  const enabledModels = allModels?.filter((m) => m.enabled && m.apiKey) || []
+  // 注意：后端返回的数据不包含敏感信息，所以只检查 enabled 状态和必要的非敏感字段
+  const enabledModels = allModels?.filter((m) => m.enabled) || []
   const enabledExchanges =
     allExchanges?.filter((e) => {
       if (!e.enabled) return false
 
-      // 由于API不再返回敏感字段信息，只能基于enabled状态判断
-      // 实际的配置验证将在后端进行
+      // Aster 交易所需要特殊字段（后端会返回这些非敏感字段）
+      if (e.id === 'aster') {
+        return (
+          e.asterUser &&
+          e.asterUser.trim() !== '' &&
+          e.asterSigner &&
+          e.asterSigner.trim() !== ''
+        )
+      }
+
+      // Hyperliquid 需要钱包地址（后端会返回这个字段）
+      if (e.id === 'hyperliquid') {
+        return e.hyperliquidWalletAddr && e.hyperliquidWalletAddr.trim() !== ''
+      }
+
+      // 其他交易所：如果已启用，说明已配置完整（后端只返回已配置的交易所）
       return true
     }) || []
 
-  // 检查模型是否正在被运行中的交易员使用
+  // 检查模型是否正在被运行中的交易员使用（用于UI禁用）
   const isModelInUse = (modelId: string) => {
-    return traders?.some((t) => t.ai_model === modelId && t.is_running) || false
+    return traders?.some((t) => t.ai_model === modelId && t.is_running)
   }
 
-  // 检查交易所是否正在被运行中的交易员使用
+  // 检查交易所是否正在被运行中的交易员使用（用于UI禁用）
   const isExchangeInUse = (exchangeId: string) => {
-    return (
-      traders?.some((t) => t.exchange_id === exchangeId && t.is_running) ||
-      false
-    )
+    return traders?.some((t) => t.exchange_id === exchangeId && t.is_running)
+  }
+
+  // 检查模型是否被任何交易员使用（包括停止状态的）
+  const isModelUsedByAnyTrader = (modelId: string) => {
+    return traders?.some((t) => t.ai_model === modelId) || false
+  }
+
+  // 检查交易所是否被任何交易员使用（包括停止状态的）
+  const isExchangeUsedByAnyTrader = (exchangeId: string) => {
+    return traders?.some((t) => t.exchange_id === exchangeId) || false
+  }
+
+  // 获取使用特定模型的交易员列表
+  const getTradersUsingModel = (modelId: string) => {
+    return traders?.filter((t) => t.ai_model === modelId) || []
+  }
+
+  // 获取使用特定交易所的交易员列表
+  const getTradersUsingExchange = (exchangeId: string) => {
+    return traders?.filter((t) => t.exchange_id === exchangeId) || []
   }
 
   const handleCreateTrader = async (data: CreateTraderRequest) => {
@@ -286,25 +332,81 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
     }
   }
 
-  const handleDeleteModelConfig = async (modelId: string) => {
+  // 通用删除配置处理函数
+  const handleDeleteConfig = async <T extends { id: string }>(config: {
+    id: string
+    type: 'model' | 'exchange'
+    checkInUse: (id: string) => boolean
+    getUsingTraders: (id: string) => any[]
+    cannotDeleteKey: string
+    confirmDeleteKey: string
+    allItems: T[] | undefined
+    clearFields: (item: T) => T
+    buildRequest: (items: T[]) => any
+    updateApi: (request: any) => Promise<void>
+    refreshApi: () => Promise<T[]>
+    setItems: (items: T[]) => void
+    closeModal: () => void
+    errorKey: string
+  }) => {
+    // 检查是否有交易员正在使用
+    if (config.checkInUse(config.id)) {
+      const usingTraders = config.getUsingTraders(config.id)
+      const traderNames = usingTraders.map((t) => t.trader_name).join(', ')
+      alert(
+        t(config.cannotDeleteKey, language) +
+          '\n\n' +
+          t('tradersUsing', language) +
+          ': ' +
+          traderNames +
+          '\n\n' +
+          t('pleaseDeleteTradersFirst', language)
+      )
+      return
+    }
+
+    if (!confirm(t(config.confirmDeleteKey, language))) return
+
     try {
-      const updatedModels =
-        allModels?.map((m) =>
-          m.id === modelId
-            ? {
-                ...m,
-                apiKey: '',
-                customApiUrl: '',
-                customModelName: '',
-                enabled: false,
-              }
-            : m
+      const updatedItems =
+        config.allItems?.map((item) =>
+          item.id === config.id ? config.clearFields(item) : item
         ) || []
 
-      const request = {
+      const request = config.buildRequest(updatedItems)
+      await config.updateApi(request)
+
+      // 重新获取用户配置以确保数据同步
+      const refreshedItems = await config.refreshApi()
+      config.setItems(refreshedItems)
+
+      config.closeModal()
+    } catch (error) {
+      console.error(`Failed to delete ${config.type} config:`, error)
+      alert(t(config.errorKey, language))
+    }
+  }
+
+  const handleDeleteModelConfig = async (modelId: string) => {
+    await handleDeleteConfig({
+      id: modelId,
+      type: 'model',
+      checkInUse: isModelUsedByAnyTrader,
+      getUsingTraders: getTradersUsingModel,
+      cannotDeleteKey: 'cannotDeleteModelInUse',
+      confirmDeleteKey: 'confirmDeleteModel',
+      allItems: allModels,
+      clearFields: (m) => ({
+        ...m,
+        apiKey: '',
+        customApiUrl: '',
+        customModelName: '',
+        enabled: false,
+      }),
+      buildRequest: (models) => ({
         models: Object.fromEntries(
-          updatedModels.map((model) => [
-            model.provider, // 使用 provider 而不是 id
+          models.map((model) => [
+            model.provider,
             {
               enabled: model.enabled,
               api_key: model.apiKey || '',
@@ -313,32 +415,19 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             },
           ])
         ),
-      }
-
-      await api.updateModelConfigs(request)
-      
-      // 重新获取用户配置以确保数据同步
-      const refreshedModels = await api.getModelConfigs()
-      setAllModels(refreshedModels)
-      
-      setShowModelModal(false)
-      setEditingModel(null)
-      setShowDeleteConfirm(false)
-      setDeleteTarget(null)
-    } catch (error) {
-      console.error('Failed to delete model config:', error)
-      alert(t('deleteConfigFailed', language))
-    }
-  }
-
-  const handleConfirmDelete = () => {
-    if (!deleteTarget) return
-    
-    if (deleteTarget.type === 'model') {
-      handleDeleteModelConfig(deleteTarget.id)
-    } else if (deleteTarget.type === 'exchange') {
-      handleDeleteExchangeConfig(deleteTarget.id)
-    }
+      }),
+      updateApi: api.updateModelConfigs,
+      refreshApi: api.getModelConfigs,
+      setItems: (items) => {
+        // 使用函数式更新确保状态正确更新
+        setAllModels([...items])
+      },
+      closeModal: () => {
+        setShowModelModal(false)
+        setEditingModel(null)
+      },
+      errorKey: 'deleteConfigFailed',
+    })
   }
 
   const handleSaveModelConfig = async (
@@ -415,34 +504,53 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   }
 
   const handleDeleteExchangeConfig = async (exchangeId: string) => {
-    try {
-      const request = {
-        exchanges: {
-          [exchangeId]: {
-            enabled: false,
-            api_key: '',
-            secret_key: '',
-            testnet: false,
-            hyperliquid_wallet_addr: '',
-            aster_user: '',
-            aster_signer: '',
-            aster_private_key: '',
-          },
-        },
-      }
-
-      await api.updateExchangeConfigsEncrypted(request)
-
-      const refreshed = await api.getExchangeConfigs()
-      setAllExchanges(refreshed)
-      setShowExchangeModal(false)
-      setEditingExchange(null)
-      setShowDeleteConfirm(false)
-      setDeleteTarget(null)
-    } catch (error) {
-      console.error('Failed to delete exchange config:', error)
-      alert(t('deleteExchangeConfigFailed', language))
-    }
+    await handleDeleteConfig({
+      id: exchangeId,
+      type: 'exchange',
+      checkInUse: isExchangeUsedByAnyTrader,
+      getUsingTraders: getTradersUsingExchange,
+      cannotDeleteKey: 'cannotDeleteExchangeInUse',
+      confirmDeleteKey: 'confirmDeleteExchange',
+      allItems: allExchanges,
+      clearFields: (e) => ({
+        ...e,
+        apiKey: '',
+        secretKey: '',
+        hyperliquidWalletAddr: '',
+        asterUser: '',
+        asterSigner: '',
+        asterPrivateKey: '',
+        enabled: false,
+      }),
+      buildRequest: (exchanges) => ({
+        exchanges: Object.fromEntries(
+          exchanges.map((exchange) => [
+            exchange.id,
+            {
+              enabled: exchange.enabled,
+              api_key: exchange.apiKey || '',
+              secret_key: exchange.secretKey || '',
+              testnet: exchange.testnet || false,
+              hyperliquid_wallet_addr: exchange.hyperliquidWalletAddr || '',
+              aster_user: exchange.asterUser || '',
+              aster_signer: exchange.asterSigner || '',
+              aster_private_key: exchange.asterPrivateKey || '',
+            },
+          ])
+        ),
+      }),
+      updateApi: api.updateExchangeConfigsEncrypted,
+      refreshApi: api.getExchangeConfigs,
+      setItems: (items) => {
+        // 使用函数式更新确保状态正确更新
+        setAllExchanges([...items])
+      },
+      closeModal: () => {
+        setShowExchangeModal(false)
+        setEditingExchange(null)
+      },
+      errorKey: 'deleteExchangeConfigFailed',
+    })
   }
 
   const handleSaveExchangeConfig = async (
@@ -465,23 +573,65 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         return
       }
 
+      // 创建或更新用户的交易所配置
+      const existingExchange = allExchanges?.find((e) => e.id === exchangeId)
+      let updatedExchanges
+
+      if (existingExchange) {
+        // 更新现有配置
+        updatedExchanges =
+          allExchanges?.map((e) =>
+            e.id === exchangeId
+              ? {
+                  ...e,
+                  apiKey,
+                  secretKey,
+                  testnet,
+                  hyperliquidWalletAddr,
+                  asterUser,
+                  asterSigner,
+                  asterPrivateKey,
+                  enabled: true,
+                }
+              : e
+          ) || []
+      } else {
+        // 添加新配置
+        const newExchange = {
+          ...exchangeToUpdate,
+          apiKey,
+          secretKey,
+          testnet,
+          hyperliquidWalletAddr,
+          asterUser,
+          asterSigner,
+          asterPrivateKey,
+          enabled: true,
+        }
+        updatedExchanges = [...(allExchanges || []), newExchange]
+      }
+
       const request = {
-        exchanges: {
-          [exchangeId]: {
-            enabled: true,
-            api_key: apiKey || '',
-            secret_key: secretKey || '',
-            testnet: !!testnet,
-            hyperliquid_wallet_addr: hyperliquidWalletAddr || '',
-            aster_user: asterUser || '',
-            aster_signer: asterSigner || '',
-            aster_private_key: asterPrivateKey || '',
-          },
-        },
+        exchanges: Object.fromEntries(
+          updatedExchanges.map((exchange) => [
+            exchange.id,
+            {
+              enabled: exchange.enabled,
+              api_key: exchange.apiKey || '',
+              secret_key: exchange.secretKey || '',
+              testnet: exchange.testnet || false,
+              hyperliquid_wallet_addr: exchange.hyperliquidWalletAddr || '',
+              aster_user: exchange.asterUser || '',
+              aster_signer: exchange.asterSigner || '',
+              aster_private_key: exchange.asterPrivateKey || '',
+            },
+          ])
+        ),
       }
 
       await api.updateExchangeConfigsEncrypted(request)
 
+      // 重新获取用户配置以确保数据同步
       const refreshedExchanges = await api.getExchangeConfigs()
       setAllExchanges(refreshedExchanges)
 
@@ -553,7 +703,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           </div>
         </div>
 
-        <div className="flex gap-2 md:gap-3 w-full md:w-auto overflow-x-auto flex-wrap md:flex-nowrap">
+        <div className="flex gap-2 md:gap-3 w-full md:w-auto overflow-hidden flex-wrap md:flex-nowrap">
           <button
             onClick={handleAddModel}
             className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
@@ -582,14 +732,15 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
 
           <button
             onClick={() => setShowSignalSourceModal(true)}
-            className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 whitespace-nowrap"
+            className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"
             style={{
               background: '#2B3139',
               color: '#EAECEF',
               border: '1px solid #474D57',
             }}
           >
-            📡 {t('signalSource', language)}
+            <Radio className="w-3 h-3 md:w-4 md:h-4" />
+            {t('signalSource', language)}
           </button>
 
           <button
@@ -644,7 +795,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                   <strong>{t('solutions', language)}</strong>
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2 mt-1">
-                  <li>点击"📡 {t('signalSource', language)}"按钮配置API地址</li>
+                  <li>点击"{t('signalSource', language)}"按钮配置API地址</li>
                   <li>或在交易员配置中禁用"使用币种池"和"使用OI Top"</li>
                   <li>或在交易员配置中设置自定义币种列表</li>
                 </ul>
@@ -726,7 +877,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                     </div>
                   </div>
                   <div
-                    className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0 ${model.enabled && model.apiKey ? 'bg-green-400' : 'bg-gray-500'}`}
+                    className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0 ${model.enabled ? 'bg-green-400' : 'bg-gray-500'}`}
                   />
                 </div>
               )
@@ -783,16 +934,12 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
                         {getShortName(exchange.name)}
                       </div>
                       <div className="text-xs" style={{ color: '#848E9C' }}>
-                        {exchange.type.toUpperCase()} • {inUse ? t('inUse', language) : exchange.enabled ? t('enabled', language) : t('configured', language)}
-                        {/* 添加地址信息 */}
-                        {inUse && (exchange.hyperliquidWalletAddr || exchange.asterUser) && (
-                          <span className="ml-1">
-                            ({exchange.hyperliquidWalletAddr
-                              ? `${exchange.hyperliquidWalletAddr.slice(0, 6)}...${exchange.hyperliquidWalletAddr.slice(-4)}`
-                              : (exchange.asterUser ? `${exchange.asterUser.slice(0, 6)}...${exchange.asterUser.slice(-4)}` : '')
-                            })
-                          </span>
-                        )}
+                        {exchange.type.toUpperCase()} •{' '}
+                        {inUse
+                          ? t('inUse', language)
+                          : exchange.enabled
+                            ? t('enabled', language)
+                            : t('configured', language)}
                       </div>
                     </div>
                   </div>
@@ -1031,17 +1178,14 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       {/* Model Configuration Modal */}
       {showModelModal && (
         <ModelConfigModal
-          supportedModels={supportedModels}
+          allModels={supportedModels}
           configuredModels={allModels}
           editingModelId={editingModel}
           onSave={handleSaveModelConfig}
+          onDelete={handleDeleteModelConfig}
           onClose={() => {
             setShowModelModal(false)
             setEditingModel(null)
-          }}
-          onDelete={(modelId) => {
-            setDeleteTarget({ type: 'model', id: modelId })
-            setShowDeleteConfirm(true)
           }}
           language={language}
         />
@@ -1050,17 +1194,13 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       {/* Exchange Configuration Modal */}
       {showExchangeModal && (
         <ExchangeConfigModal
-          supportedExchanges={supportedExchanges}
-          configuredExchanges={allExchanges}
+          allExchanges={supportedExchanges}
           editingExchangeId={editingExchange}
           onSave={handleSaveExchangeConfig}
+          onDelete={handleDeleteExchangeConfig}
           onClose={() => {
             setShowExchangeModal(false)
             setEditingExchange(null)
-          }}
-          onDelete={(exchangeId) => {
-            setDeleteTarget({ type: 'exchange', id: exchangeId })
-            setShowDeleteConfirm(true)
           }}
           language={language}
         />
@@ -1073,27 +1213,6 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           oiTopUrl={userSignalSource.oiTopUrl}
           onSave={handleSaveSignalSource}
           onClose={() => setShowSignalSourceModal(false)}
-          language={language}
-        />
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && deleteTarget && (
-        <DeleteConfirmModal
-          isOpen={showDeleteConfirm}
-          title={deleteTarget.type === 'model' 
-            ? t('confirmDeleteModel', language)
-            : t('confirmDeleteExchange', language)
-          }
-          message={deleteTarget.type === 'model'
-            ? t('deleteModelWarning', language)
-            : t('deleteExchangeWarning', language)
-          }
-          onConfirm={handleConfirmDelete}
-          onCancel={() => {
-            setShowDeleteConfirm(false)
-            setDeleteTarget(null)
-          }}
           language={language}
         />
       )}
@@ -1175,7 +1294,7 @@ function SignalSourceModal({
         style={{ background: '#1E2329' }}
       >
         <h3 className="text-xl font-bold mb-4" style={{ color: '#EAECEF' }}>
-          📡 {t('signalSourceConfig', language)}
+          {t('signalSourceConfig', language)}
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -1270,80 +1389,17 @@ function SignalSourceModal({
   )
 }
 
-// Delete Confirmation Modal Component
-function DeleteConfirmModal({
-  isOpen,
-  title,
-  message,
-  onConfirm,
-  onCancel,
-  language,
-}: {
-  isOpen: boolean
-  title: string
-  message: string
-  onConfirm: () => void
-  onCancel: () => void
-  language: Language
-}) {
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div
-        className="bg-gray-800 rounded-lg p-6 w-full max-w-md relative"
-        style={{ background: '#1E2329' }}
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div 
-            className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: 'rgba(246, 70, 93, 0.1)' }}
-          >
-            <AlertTriangle className="w-5 h-5" style={{ color: '#F6465D' }} />
-          </div>
-          <h3 className="text-lg font-bold" style={{ color: '#EAECEF' }}>
-            {title}
-          </h3>
-        </div>
-        
-        <p className="text-sm mb-6" style={{ color: '#848E9C' }}>
-          {message}
-        </p>
-        
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
-            style={{ background: '#2B3139', color: '#848E9C' }}
-          >
-            {t('cancel', language)}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="flex-1 px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
-            style={{ background: '#F6465D', color: '#fff' }}
-          >
-            {t('delete', language)}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Model Configuration Modal Component
 function ModelConfigModal({
-  supportedModels,
+  allModels,
   configuredModels,
   editingModelId,
   onSave,
-  onClose,
   onDelete,
+  onClose,
   language,
 }: {
-  supportedModels: AIModel[]
+  allModels: AIModel[]
   configuredModels: AIModel[]
   editingModelId: string | null
   onSave: (
@@ -1352,8 +1408,8 @@ function ModelConfigModal({
     baseUrl?: string,
     modelName?: string
   ) => void
-  onClose: () => void
   onDelete: (modelId: string) => void
+  onClose: () => void
   language: Language
 }) {
   const [selectedModelId, setSelectedModelId] = useState(editingModelId || '')
@@ -1361,10 +1417,10 @@ function ModelConfigModal({
   const [baseUrl, setBaseUrl] = useState('')
   const [modelName, setModelName] = useState('')
 
-  // 获取当前编辑的模型信息 - 编辑时从已配置的模型中查找，新建时从支持的模型中查找
+  // 获取当前编辑的模型信息 - 编辑时从已配置的模型中查找，新建时从所有支持的模型中查找
   const selectedModel = editingModelId
-    ? configuredModels?.find((m) => m.id === selectedModelId)  // 编辑：从已配置中获取完整信息
-    : supportedModels?.find((m) => m.id === selectedModelId)   // 新建：从支持列表获取基本信息
+    ? configuredModels?.find((m) => m.id === selectedModelId)
+    : allModels?.find((m) => m.id === selectedModelId)
 
   // 如果是编辑现有模型，初始化API Key、Base URL和Model Name
   useEffect(() => {
@@ -1387,8 +1443,8 @@ function ModelConfigModal({
     )
   }
 
-  // 可选择的模型列表：直接使用系统支持的模型
-  const availableModels = supportedModels || []
+  // 可选择的模型列表（所有支持的模型）
+  const availableModels = allModels || []
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1408,7 +1464,7 @@ function ModelConfigModal({
               onClick={() => onDelete(editingModelId)}
               className="p-2 rounded hover:bg-red-100 transition-colors"
               style={{ background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }}
-              title={t('deleteModel', language)}
+              title={t('delete', language)}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -1602,16 +1658,14 @@ function ModelConfigModal({
 
 // Exchange Configuration Modal Component
 function ExchangeConfigModal({
-  supportedExchanges,
-  configuredExchanges,
+  allExchanges,
   editingExchangeId,
   onSave,
-  onClose,
   onDelete,
+  onClose,
   language,
 }: {
-  supportedExchanges: Exchange[]
-  configuredExchanges: Exchange[]
+  allExchanges: Exchange[]
   editingExchangeId: string | null
   onSave: (
     exchangeId: string,
@@ -1623,8 +1677,8 @@ function ExchangeConfigModal({
     asterSigner?: string,
     asterPrivateKey?: string
   ) => Promise<void>
-  onClose: () => void
   onDelete: (exchangeId: string) => void
+  onClose: () => void
   language: Language
 }) {
   const [selectedExchangeId, setSelectedExchangeId] = useState(
@@ -1645,67 +1699,41 @@ function ExchangeConfigModal({
   // 币安配置指南展开状态
   const [showBinanceGuide, setShowBinanceGuide] = useState(false)
 
-  // Hyperliquid 特定字段
-  const [hyperliquidWalletAddr, setHyperliquidWalletAddr] = useState('')
-
   // Aster 特定字段
   const [asterUser, setAsterUser] = useState('')
   const [asterSigner, setAsterSigner] = useState('')
   const [asterPrivateKey, setAsterPrivateKey] = useState('')
+
+  // Hyperliquid 特定字段
+  const [hyperliquidWalletAddr, setHyperliquidWalletAddr] = useState('')
+
+  // 安全输入状态
   const [secureInputTarget, setSecureInputTarget] = useState<
     null | 'hyperliquid' | 'aster'
   >(null)
 
-  // 获取当前选择的交易所信息
-  // 编辑模式：从 configuredExchanges 查找（包含用户配置的 apiKey、secretKey 等）
-  // 新增模式：从 supportedExchanges 查找（系统支持的交易所列表）
-  const selectedExchange = editingExchangeId
-    ? configuredExchanges?.find(e => e.id === selectedExchangeId)
-    : supportedExchanges?.find(e => e.id === selectedExchangeId);
+  // 获取当前编辑的交易所信息
+  const selectedExchange = allExchanges?.find(
+    (e) => e.id === selectedExchangeId
+  )
 
-  const secureInputContextLabel =
-    secureInputTarget === 'aster'
-      ? t('asterExchangeName', language)
-      : secureInputTarget === 'hyperliquid'
-      ? t('hyperliquidExchangeName', language)
-      : undefined
-
-  // 如果是编辑现有交易所，清空所有敏感字段以保证安全
+  // 如果是编辑现有交易所，初始化表单数据
   useEffect(() => {
     if (editingExchangeId && selectedExchange) {
-      // 编辑模式下清空所有敏感字段，用户需要重新输入
-      setApiKey('')
-      setSecretKey('')
-      setPassphrase('')
+      setApiKey(selectedExchange.apiKey || '')
+      setSecretKey(selectedExchange.secretKey || '')
+      setPassphrase('') // Don't load existing passphrase for security
       setTestnet(selectedExchange.testnet || false)
-      setHyperliquidWalletAddr(selectedExchange.hyperliquidWalletAddr || '')
+
+      // Aster 字段
       setAsterUser(selectedExchange.asterUser || '')
-      setAsterSigner('')
-      setAsterPrivateKey('')
+      setAsterSigner(selectedExchange.asterSigner || '')
+      setAsterPrivateKey('') // Don't load existing private key for security
+
+      // Hyperliquid 字段
+      setHyperliquidWalletAddr(selectedExchange.hyperliquidWalletAddr || '')
     }
   }, [editingExchangeId, selectedExchange])
-
-  const handleSecureInputComplete = ({
-    value,
-    obfuscationLog,
-  }: {
-    value: string
-    obfuscationLog: string[]
-  }) => {
-    const trimmed = value.trim()
-    if (secureInputTarget === 'hyperliquid') {
-      setApiKey(trimmed)
-    }
-    if (secureInputTarget === 'aster') {
-      setAsterPrivateKey(trimmed)
-    }
-    console.log('Secure input obfuscation log:', obfuscationLog)
-    setSecureInputTarget(null)
-  }
-
-  const handleSecureInputCancel = () => {
-    setSecureInputTarget(null)
-  }
 
   // 加载服务器IP（当选择binance时）
   useEffect(() => {
@@ -1725,14 +1753,49 @@ function ExchangeConfigModal({
     }
   }, [selectedExchangeId])
 
-  // 可选择的交易所列表：直接使用系统支持的交易所
-  const availableExchanges = supportedExchanges || []
-
   const handleCopyIP = (ip: string) => {
     navigator.clipboard.writeText(ip).then(() => {
       setCopiedIP(true)
       setTimeout(() => setCopiedIP(false), 2000)
     })
+  }
+
+  // 安全输入处理函数
+  const secureInputContextLabel =
+    secureInputTarget === 'aster'
+      ? t('asterExchangeName', language)
+      : secureInputTarget === 'hyperliquid'
+        ? t('hyperliquidExchangeName', language)
+        : undefined
+
+  const handleSecureInputCancel = () => {
+    setSecureInputTarget(null)
+  }
+
+  const handleSecureInputComplete = ({
+    value,
+    obfuscationLog,
+  }: TwoStageKeyModalResult) => {
+    const trimmed = value.trim()
+    if (secureInputTarget === 'hyperliquid') {
+      setApiKey(trimmed)
+    }
+    if (secureInputTarget === 'aster') {
+      setAsterPrivateKey(trimmed)
+    }
+    console.log('Secure input obfuscation log:', obfuscationLog)
+    setSecureInputTarget(null)
+  }
+
+  // 掩盖敏感数据显示
+  const maskSecret = (secret: string) => {
+    if (!secret || secret.length === 0) return ''
+    if (secret.length <= 8) return '*'.repeat(secret.length)
+    return (
+      secret.slice(0, 4) +
+      '*'.repeat(Math.max(secret.length - 8, 4)) +
+      secret.slice(-4)
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1744,8 +1807,14 @@ function ExchangeConfigModal({
       if (!apiKey.trim() || !secretKey.trim()) return
       await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
     } else if (selectedExchange?.id === 'hyperliquid') {
-      if (!apiKey.trim()) return // 只验证私钥，钱包地址自动从私钥生成
-      await onSave(selectedExchangeId, apiKey.trim(), '', testnet, '') // 传空字符串，后端自动生成地址
+      if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) return // 验证私钥和钱包地址
+      await onSave(
+        selectedExchangeId,
+        apiKey.trim(),
+        '',
+        testnet,
+        hyperliquidWalletAddr.trim()
+      )
     } else if (selectedExchange?.id === 'aster') {
       if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim())
         return
@@ -1769,14 +1838,15 @@ function ExchangeConfigModal({
     }
   }
 
+  // 可选择的交易所列表（所有支持的交易所）
+  const availableExchanges = allExchanges || []
+
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-        <div
-          className="bg-gray-800 rounded-lg p-6 w-full max-w-lg relative my-8 max-h-[calc(100vh-2rem)]"
-          style={{ background: '#1E2329' }}
-        >
-        <div className="max-h-[calc(100vh-8rem)] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div
+        className="bg-gray-800 rounded-lg p-6 w-full max-w-lg relative"
+        style={{ background: '#1E2329' }}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold" style={{ color: '#EAECEF' }}>
             {editingExchangeId
@@ -1807,7 +1877,7 @@ function ExchangeConfigModal({
                   background: 'rgba(246, 70, 93, 0.1)',
                   color: '#F6465D',
                 }}
-                title={t('deleteExchange', language)}
+                title={t('delete', language)}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -2104,12 +2174,42 @@ function ExchangeConfigModal({
               {/* Hyperliquid 交易所的字段 */}
               {selectedExchange.id === 'hyperliquid' && (
                 <>
+                  {/* 安全提示 banner */}
+                  <div
+                    className="p-3 rounded mb-4"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.1)',
+                      border: '1px solid rgba(240, 185, 11, 0.3)',
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span style={{ color: '#F0B90B', fontSize: '16px' }}>
+                        🔐
+                      </span>
+                      <div className="flex-1">
+                        <div
+                          className="text-sm font-semibold mb-1"
+                          style={{ color: '#F0B90B' }}
+                        >
+                          {t('hyperliquidAgentWalletTitle', language)}
+                        </div>
+                        <div
+                          className="text-xs"
+                          style={{ color: '#848E9C', lineHeight: '1.5' }}
+                        >
+                          {t('hyperliquidAgentWalletDesc', language)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Agent Private Key 字段 */}
                   <div>
                     <label
                       className="block text-sm font-semibold mb-2"
                       style={{ color: '#EAECEF' }}
                     >
-                      {t('privateKey', language)}
+                      {t('hyperliquidAgentPrivateKey', language)}
                     </label>
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
@@ -2117,7 +2217,10 @@ function ExchangeConfigModal({
                           type="text"
                           value={maskSecret(apiKey)}
                           readOnly
-                          placeholder={t('enterPrivateKey', language)}
+                          placeholder={t(
+                            'enterHyperliquidAgentPrivateKey',
+                            language
+                          )}
                           className="w-full px-3 py-2 rounded"
                           style={{
                             background: '#0B0E11',
@@ -2161,30 +2264,36 @@ function ExchangeConfigModal({
                       )}
                     </div>
                     <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                      {t('hyperliquidPrivateKeyDesc', language)}
+                      {t('hyperliquidAgentPrivateKeyDesc', language)}
                     </div>
-                  </div>           
+                  </div>
+
+                  {/* Main Wallet Address 字段 */}
                   <div>
                     <label
                       className="block text-sm font-semibold mb-2"
                       style={{ color: '#EAECEF' }}
                     >
-                      钱包地址
+                      {t('hyperliquidMainWalletAddress', language)}
                     </label>
                     <input
                       type="text"
                       value={hyperliquidWalletAddr}
                       onChange={(e) => setHyperliquidWalletAddr(e.target.value)}
-                      placeholder="钱包地址（可选，通常由私钥自动生成）"
+                      placeholder={t(
+                        'enterHyperliquidMainWalletAddress',
+                        language
+                      )}
                       className="w-full px-3 py-2 rounded"
                       style={{
                         background: '#0B0E11',
                         border: '1px solid #2B3139',
                         color: '#EAECEF',
                       }}
+                      required
                     />
                     <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                      钱包地址通常由私钥自动生成，编辑时可查看或修改
+                      {t('hyperliquidMainWalletAddressDesc', language)}
                     </div>
                   </div>
                 </>
@@ -2380,7 +2489,8 @@ function ExchangeConfigModal({
                   (!apiKey.trim() ||
                     !secretKey.trim() ||
                     !passphrase.trim())) ||
-                (selectedExchange.id === 'hyperliquid' && !apiKey.trim()) || // 只验证私钥，钱包地址可选
+                (selectedExchange.id === 'hyperliquid' &&
+                  (!apiKey.trim() || !hyperliquidWalletAddr.trim())) || // 验证私钥和钱包地址
                 (selectedExchange.id === 'aster' &&
                   (!asterUser.trim() ||
                     !asterSigner.trim() ||
@@ -2399,7 +2509,6 @@ function ExchangeConfigModal({
             </button>
           </div>
         </form>
-        </div>
       </div>
 
       {/* Binance Setup Guide Modal */}
@@ -2439,8 +2548,8 @@ function ExchangeConfigModal({
           </div>
         </div>
       )}
-      </div>
 
+      {/* Two Stage Key Modal */}
       <TwoStageKeyModal
         isOpen={secureInputTarget !== null}
         language={language}
@@ -2449,6 +2558,6 @@ function ExchangeConfigModal({
         onCancel={handleSecureInputCancel}
         onComplete={handleSecureInputComplete}
       />
-    </>
+    </div>
   )
 }
