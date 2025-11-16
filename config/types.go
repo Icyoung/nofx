@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"nofx/crypto"
 	"time"
 )
 
@@ -227,8 +228,9 @@ func (w *DatabaseWrapper) GetBetaCodeStats() (int, int, error) {
 	return w.impl.GetBetaCodeStats()
 }
 func (w *DatabaseWrapper) SetCryptoService(cryptoService interface{}) error { 
-	// The actual implementation expects *crypto.CryptoService, but we'll stub this for now
-	// since crypto service setup is not critical for basic functionality
+	if cs, ok := cryptoService.(*crypto.CryptoService); ok {
+		w.impl.SetCryptoService(cs)
+	}
 	return nil
 }
 func (w *DatabaseWrapper) GetCustomCoins() ([]string, error) { 
@@ -302,6 +304,7 @@ type TraderRecord struct {
 	OverrideBasePrompt   bool      `db:"override_base_prompt" json:"override_base_prompt"`
 	SystemPromptTemplate string    `db:"system_prompt_template" json:"system_prompt_template"`
 	IsCrossMargin        bool      `db:"is_cross_margin" json:"is_cross_margin"`
+	KlineIntervals       string    `db:"kline_intervals" json:"kline_intervals"`       // K线时间间隔配置，格式如 "3m,4h" 或 "5m,1h,1d"
 	CreatedAt            time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt            time.Time `db:"updated_at" json:"updated_at"`
 }

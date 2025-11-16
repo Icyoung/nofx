@@ -28,6 +28,7 @@ interface TraderConfigData {
   use_oi_top: boolean
   initial_balance?: number // 可选：创建时不需要，编辑时使用
   scan_interval_minutes: number
+  kline_intervals?: string // K线时间间隔配置
 }
 
 interface TraderConfigModalProps {
@@ -64,6 +65,7 @@ export function TraderConfigModal({
     use_coin_pool: false,
     use_oi_top: false,
     scan_interval_minutes: 3,
+    kline_intervals: '',
   })
   const [isSaving, setIsSaving] = useState(false)
   const [availableCoins, setAvailableCoins] = useState<string[]>([])
@@ -72,6 +74,11 @@ export function TraderConfigModal({
   const [promptTemplates, setPromptTemplates] = useState<{ name: string }[]>([])
   const [isFetchingBalance, setIsFetchingBalance] = useState(false)
   const [balanceFetchError, setBalanceFetchError] = useState<string>('')
+  const [availableKlineIntervals] = useState<string[]>([
+    '1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '1w'
+  ])
+  const [selectedKlineIntervals, setSelectedKlineIntervals] = useState<string[]>([])
+  const [showKlineSelector, setShowKlineSelector] = useState(false)
 
   useEffect(() => {
     if (traderData) {
@@ -83,6 +90,14 @@ export function TraderConfigModal({
           .map((s) => s.trim())
           .filter((s) => s)
         setSelectedCoins(coins)
+      }
+      // 设置已选择的K线间隔
+      if (traderData.kline_intervals) {
+        const intervals = traderData.kline_intervals
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s)
+        setSelectedKlineIntervals(intervals)
       }
     } else if (!isEditMode) {
       setFormData({
@@ -100,6 +115,7 @@ export function TraderConfigModal({
         use_oi_top: false,
         initial_balance: 1000,
         scan_interval_minutes: 3,
+        kline_intervals: '',
       })
     }
     // 确保旧数据也有默认的 system_prompt_template
@@ -168,6 +184,14 @@ export function TraderConfigModal({
         .filter((s: string) => s)
       setSelectedCoins(coins)
     }
+    // 如果是直接编辑kline_intervals，同步更新selectedKlineIntervals
+    if (field === 'kline_intervals') {
+      const intervals = value
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter((s: string) => s)
+      setSelectedKlineIntervals(intervals)
+    }
   }
 
   const handleCoinToggle = (coin: string) => {
@@ -181,6 +205,20 @@ export function TraderConfigModal({
       setFormData((current) => ({ ...current, trading_symbols: symbolsString }))
 
       return newCoins
+    })
+  }
+
+  const handleKlineIntervalToggle = (interval: string) => {
+    setSelectedKlineIntervals((prev) => {
+      const newIntervals = prev.includes(interval)
+        ? prev.filter((i) => i !== interval)
+        : [...prev, interval]
+
+      // 同时更新 formData.kline_intervals
+      const intervalsString = newIntervals.join(',')
+      setFormData((current) => ({ ...current, kline_intervals: intervalsString }))
+
+      return newIntervals
     })
   }
 
@@ -242,6 +280,7 @@ export function TraderConfigModal({
         use_coin_pool: formData.use_coin_pool,
         use_oi_top: formData.use_oi_top,
         scan_interval_minutes: formData.scan_interval_minutes,
+        kline_intervals: formData.kline_intervals || '',
       }
 
       // 只在编辑模式时包含initial_balance（用于手动更新）
@@ -501,7 +540,58 @@ export function TraderConfigModal({
                     {t('scanIntervalRecommend', language)}
                   </p>
                 </div>
-                <div></div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm text-[#EAECEF]">
+                      K线时间间隔
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowKlineSelector(!showKlineSelector)}
+                      className="px-3 py-1 text-xs bg-[#F0B90B] text-black rounded hover:bg-[#E1A706] transition-colors"
+                    >
+                      {showKlineSelector ? '收起选择' : '快速选择'}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.kline_intervals}
+                    onChange={(e) =>
+                      handleInputChange('kline_intervals', e.target.value)
+                    }
+                    className="w-full px-3 py-2 bg-[#0B0E11] border border-[#2B3139] rounded text-[#EAECEF] focus:border-[#F0B90B] focus:outline-none"
+                    placeholder="例如: 1m,15m,4h (留空使用系统默认)"
+                  />
+
+                  {/* K线间隔选择器 */}
+                  {showKlineSelector && (
+                    <div className="mt-3 p-3 bg-[#0B0E11] border border-[#2B3139] rounded">
+                      <div className="text-xs text-[#848E9C] mb-2">
+                        点击选择K线时间间隔：
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {availableKlineIntervals.map((interval) => (
+                          <button
+                            key={interval}
+                            type="button"
+                            onClick={() => handleKlineIntervalToggle(interval)}
+                            className={`px-2 py-1 text-xs rounded transition-colors ${
+                              selectedKlineIntervals.includes(interval)
+                                ? 'bg-[#F0B90B] text-black'
+                                : 'bg-[#1E2329] text-[#848E9C] border border-[#2B3139] hover:border-[#F0B90B]'
+                            }`}
+                          >
+                            {interval}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    用逗号分隔多个时间间隔，支持 1m,3m,5m,15m,30m,1h,2h,4h,6h,8h,12h,1d,1w
+                  </p>
+                </div>
               </div>
 
               {/* 第三行：杠杆设置 */}

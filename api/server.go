@@ -15,6 +15,7 @@ import (
 	"nofx/hook"
 	"nofx/manager"
 	"nofx/trader"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -395,6 +396,85 @@ func (s *Server) getTraderFromQuery(c *gin.Context) (*manager.TraderManager, str
 	return s.traderManager, traderID, nil
 }
 
+// validateKlineIntervals 校验K线时间间隔格式
+func validateKlineIntervals(intervals string) error {
+	if strings.TrimSpace(intervals) == "" {
+		// 空值是允许的，将使用默认值
+		return nil
+	}
+
+	// 支持的时间间隔列表
+	validIntervals := map[string]bool{
+		"1m": true, "3m": true, "5m": true, "15m": true, "30m": true,
+		"1h": true, "2h": true, "4h": true, "6h": true, "8h": true, "12h": true,
+		"1d": true, "3d": true, "1w": true, "1M": true,
+	}
+
+	// 时间间隔格式正则表达式（支持自定义数字+单位）
+	intervalPattern := regexp.MustCompile(`^(\d+)([mhdwM])$`)
+
+	// 解析逗号分隔的间隔列表
+	intervalList := strings.Split(intervals, ",")
+	if len(intervalList) == 0 {
+		return fmt.Errorf("K线时间间隔不能为空")
+	}
+	if len(intervalList) > 5 {
+		return fmt.Errorf("K线时间间隔最多支持5个")
+	}
+
+	for _, interval := range intervalList {
+		interval = strings.TrimSpace(interval)
+		if interval == "" {
+			continue
+		}
+
+		// 检查是否是预定义的有效间隔
+		if validIntervals[interval] {
+			continue
+		}
+
+		// 检查是否是自定义格式（如 "10m", "2h" 等）
+		matches := intervalPattern.FindStringSubmatch(interval)
+		if len(matches) != 3 {
+			return fmt.Errorf("无效的K线时间间隔格式: %s", interval)
+		}
+
+		num, err := strconv.Atoi(matches[1])
+		if err != nil || num <= 0 {
+			return fmt.Errorf("无效的K线时间间隔数字: %s", interval)
+		}
+
+		unit := matches[2]
+		// 验证单位和数字的合理性
+		switch unit {
+		case "m": // 分钟
+			if num > 1440 { // 最大24小时
+				return fmt.Errorf("分钟间隔不能超过1440分钟: %s", interval)
+			}
+		case "h": // 小时
+			if num > 168 { // 最大1周
+				return fmt.Errorf("小时间隔不能超过168小时: %s", interval)
+			}
+		case "d": // 天
+			if num > 30 { // 最大30天
+				return fmt.Errorf("天数间隔不能超过30天: %s", interval)
+			}
+		case "w": // 周
+			if num > 52 { // 最大52周
+				return fmt.Errorf("周间隔不能超过52周: %s", interval)
+			}
+		case "M": // 月
+			if num > 12 { // 最大12个月
+				return fmt.Errorf("月间隔不能超过12个月: %s", interval)
+			}
+		default:
+			return fmt.Errorf("不支持的时间单位: %s", unit)
+		}
+	}
+
+	return nil
+}
+
 // AI交易员管理相关结构体
 type CreateTraderRequest struct {
 	Name                 string  `json:"name" binding:"required"`
@@ -411,6 +491,7 @@ type CreateTraderRequest struct {
 	IsCrossMargin        *bool   `json:"is_cross_margin"`        // 指针类型，nil表示使用默认值true
 	UseCoinPool          bool    `json:"use_coin_pool"`
 	UseOITop             bool    `json:"use_oi_top"`
+	KlineIntervals       string  `json:"kline_intervals"`        // K线时间间隔配置，格式如 "3m,4h"
 }
 
 type ModelConfig struct {
@@ -482,6 +563,12 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 	var req CreateTraderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 校验K线时间间隔格式
+	if err := validateKlineIntervals(req.KlineIntervals); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("K线时间间隔格式错误: %v", err)})
 		return
 	}
 
@@ -662,6 +749,7 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
 		ScanIntervalMinutes:  scanIntervalMinutes,
+		KlineIntervals:       req.KlineIntervals, // K线时间间隔配置
 		IsRunning:            false,
 	}
 
@@ -703,6 +791,7 @@ type UpdateTraderRequest struct {
 	OverrideBasePrompt   bool    `json:"override_base_prompt"`
 	SystemPromptTemplate string  `json:"system_prompt_template"`
 	IsCrossMargin        *bool   `json:"is_cross_margin"`
+	KlineIntervals       string  `json:"kline_intervals"`        // K线时间间隔配置
 }
 
 // handleUpdateTrader 更新交易员配置
@@ -713,6 +802,12 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 	var req UpdateTraderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 校验K线时间间隔格式
+	if err := validateKlineIntervals(req.KlineIntervals); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("K线时间间隔格式错误: %v", err)})
 		return
 	}
 
@@ -782,6 +877,7 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
 		ScanIntervalMinutes:  scanIntervalMinutes,
+		KlineIntervals:       req.KlineIntervals, // K线时间间隔配置
 		IsRunning:            existingTrader.IsRunning, // 保持原值
 	}
 
@@ -1024,6 +1120,12 @@ func (s *Server) handleUpdateModelConfigs(c *gin.Context) {
 			"code":    "ENCRYPTION_REQUIRED",
 			"message": "Encrypted transmission is required for security reasons",
 		})
+		return
+	}
+
+	// 检查加密服务是否可用
+	if s.cryptoHandler == nil || s.cryptoHandler.cryptoService == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "加密服务不可用"})
 		return
 	}
 

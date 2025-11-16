@@ -226,6 +226,38 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		log.Printf("✓ 交易员 %s 启用 COIN POOL 信号源: %s", traderCfg.Name, coinPoolURL)
 	}
 
+	// 解析K线时间间隔配置
+	var klineIntervals []string
+	if traderCfg.KlineIntervals != "" {
+		// 解析逗号分隔的K线间隔列表
+		intervals := strings.Split(traderCfg.KlineIntervals, ",")
+		for _, interval := range intervals {
+			interval = strings.TrimSpace(interval)
+			if interval != "" {
+				klineIntervals = append(klineIntervals, interval)
+			}
+		}
+	}
+	// 如果没有配置K线间隔，从数据库获取默认值
+	if len(klineIntervals) == 0 {
+		if defaultIntervalsStr, _ := database.GetSystemConfig("default_kline_intervals"); defaultIntervalsStr != nil {
+			if str, ok := defaultIntervalsStr.(string); ok && str != "" {
+				// 解析默认的K线间隔配置
+				intervals := strings.Split(str, ",")
+				for _, interval := range intervals {
+					interval = strings.TrimSpace(interval)
+					if interval != "" {
+						klineIntervals = append(klineIntervals, interval)
+					}
+				}
+			}
+		}
+		// 如果数据库中也没有配置，使用硬编码的默认值
+		if len(klineIntervals) == 0 {
+			klineIntervals = []string{"1m", "15m", "4h"}
+		}
+	}
+
 	// 构建AutoTraderConfig
 	traderConfig := trader.AutoTraderConfig{
 		ID:                    traderCfg.ID,
@@ -253,6 +285,7 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		DefaultCoins:          defaultCoins,
 		TradingCoins:          tradingCoins,
 		SystemPromptTemplate:  traderCfg.SystemPromptTemplate, // 系统提示词模板
+		KlineIntervals:        klineIntervals,                 // K线时间间隔配置
 	}
 
 	// 根据交易所类型设置API密钥
@@ -1043,6 +1076,7 @@ func (tm *TraderManager) LoadTraderByID(database config.DatabaseInterface, userI
 func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiModelCfg *config.AIModelConfig, exchangeCfg *config.ExchangeConfig, coinPoolURL, oiTopURL string, maxDailyLoss, maxDrawdown float64, stopTradingMinutes int, defaultCoins []string, database config.DatabaseInterface, userID string) error {
 	// 处理交易币种列表
 	var tradingCoins []string
+	log.Printf("🔍 [DEBUG] 交易员 %s 的原始TradingSymbols: '%s'", traderCfg.Name, traderCfg.TradingSymbols)
 	if traderCfg.TradingSymbols != "" {
 		// 解析逗号分隔的交易币种列表
 		symbols := strings.Split(traderCfg.TradingSymbols, ",")
@@ -1052,6 +1086,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 				tradingCoins = append(tradingCoins, symbol)
 			}
 		}
+		log.Printf("🔍 [DEBUG] 解析后的tradingCoins: %v (数量: %d)", tradingCoins, len(tradingCoins))
 	}
 
 	// 如果没有指定交易币种，使用默认币种
@@ -1064,6 +1099,38 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 	if traderCfg.UseCoinPool && coinPoolURL != "" {
 		effectiveCoinPoolURL = coinPoolURL
 		log.Printf("✓ 交易员 %s 启用 COIN POOL 信号源: %s", traderCfg.Name, coinPoolURL)
+	}
+
+	// 解析K线时间间隔配置
+	var klineIntervals []string
+	if traderCfg.KlineIntervals != "" {
+		// 解析逗号分隔的K线间隔列表
+		intervals := strings.Split(traderCfg.KlineIntervals, ",")
+		for _, interval := range intervals {
+			interval = strings.TrimSpace(interval)
+			if interval != "" {
+				klineIntervals = append(klineIntervals, interval)
+			}
+		}
+	}
+	// 如果没有配置K线间隔，从数据库获取默认值
+	if len(klineIntervals) == 0 {
+		if defaultIntervalsStr, _ := database.GetSystemConfig("default_kline_intervals"); defaultIntervalsStr != nil {
+			if str, ok := defaultIntervalsStr.(string); ok && str != "" {
+				// 解析默认的K线间隔配置
+				intervals := strings.Split(str, ",")
+				for _, interval := range intervals {
+					interval = strings.TrimSpace(interval)
+					if interval != "" {
+						klineIntervals = append(klineIntervals, interval)
+					}
+				}
+			}
+		}
+		// 如果数据库中也没有配置，使用硬编码的默认值
+		if len(klineIntervals) == 0 {
+			klineIntervals = []string{"1m", "15m", "4h"}
+		}
 	}
 
 	// 构建AutoTraderConfig
@@ -1088,6 +1155,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		TradingCoins:         tradingCoins,
 		SystemPromptTemplate: traderCfg.SystemPromptTemplate, // 系统提示词模板
 		HyperliquidTestnet:   exchangeCfg.Testnet,            // Hyperliquid测试网
+		KlineIntervals:       klineIntervals,                 // K线时间间隔配置
 	}
 
 	// 根据交易所类型设置API密钥

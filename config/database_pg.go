@@ -621,9 +621,9 @@ func (d *PostgreSQLDatabase) CreateExchange(userID, id, name, typ string, enable
 // CreateTrader 创建交易员
 func (d *PostgreSQLDatabase) CreateTrader(trader *TraderRecord) error {
 	_, err := d.db.Exec(`
-		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool, use_oi_top, custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-	`, trader.ID, trader.UserID, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.BTCETHLeverage, trader.AltcoinLeverage, trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.CustomPrompt, trader.OverrideBasePrompt, trader.SystemPromptTemplate, trader.IsCrossMargin)
+		INSERT INTO traders (id, user_id, name, ai_model_id, exchange_id, initial_balance, scan_interval_minutes, is_running, btc_eth_leverage, altcoin_leverage, trading_symbols, use_coin_pool, use_oi_top, custom_prompt, override_base_prompt, system_prompt_template, is_cross_margin, kline_intervals)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+	`, trader.ID, trader.UserID, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance, trader.ScanIntervalMinutes, trader.IsRunning, trader.BTCETHLeverage, trader.AltcoinLeverage, trader.TradingSymbols, trader.UseCoinPool, trader.UseOITop, trader.CustomPrompt, trader.OverrideBasePrompt, trader.SystemPromptTemplate, trader.IsCrossMargin, trader.KlineIntervals)
 	return err
 }
 
@@ -636,7 +636,8 @@ func (d *PostgreSQLDatabase) GetTraders(userID string) ([]*TraderRecord, error) 
 		       COALESCE(use_coin_pool, false) as use_coin_pool, COALESCE(use_oi_top, false) as use_oi_top,
 		       COALESCE(custom_prompt, '') as custom_prompt, COALESCE(override_base_prompt, false) as override_base_prompt,
 		       COALESCE(system_prompt_template, 'default') as system_prompt_template,
-		       COALESCE(is_cross_margin, true) as is_cross_margin, created_at, updated_at
+		       COALESCE(is_cross_margin, true) as is_cross_margin, 
+		       COALESCE(kline_intervals, '') as kline_intervals, created_at, updated_at
 		FROM traders WHERE user_id = $1 ORDER BY created_at DESC
 	`, userID)
 	if err != nil {
@@ -653,7 +654,7 @@ func (d *PostgreSQLDatabase) GetTraders(userID string) ([]*TraderRecord, error) 
 			&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
 			&trader.UseCoinPool, &trader.UseOITop,
 			&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
-			&trader.IsCrossMargin,
+			&trader.IsCrossMargin, &trader.KlineIntervals,
 			&trader.CreatedAt, &trader.UpdatedAt,
 		)
 		if err != nil {
@@ -678,12 +679,12 @@ func (d *PostgreSQLDatabase) UpdateTrader(trader *TraderRecord) error {
 			name = $1, ai_model_id = $2, exchange_id = $3, initial_balance = $4,
 			scan_interval_minutes = $5, btc_eth_leverage = $6, altcoin_leverage = $7,
 			trading_symbols = $8, custom_prompt = $9, override_base_prompt = $10,
-			system_prompt_template = $11, is_cross_margin = $12, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $13 AND user_id = $14
+			system_prompt_template = $11, is_cross_margin = $12, kline_intervals = $13, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $14 AND user_id = $15
 	`, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance,
 		trader.ScanIntervalMinutes, trader.BTCETHLeverage, trader.AltcoinLeverage,
 		trader.TradingSymbols, trader.CustomPrompt, trader.OverrideBasePrompt,
-		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.ID, trader.UserID)
+		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.KlineIntervals, trader.ID, trader.UserID)
 	return err
 }
 
@@ -713,7 +714,15 @@ func (d *PostgreSQLDatabase) GetTraderConfig(userID, traderID string) (*TraderRe
 
 	err := d.db.QueryRow(`
 		SELECT 
-			t.id, t.user_id, t.name, t.ai_model_id, t.exchange_id, t.initial_balance, t.scan_interval_minutes, t.is_running, t.created_at, t.updated_at,
+			t.id, t.user_id, t.name, t.ai_model_id, t.exchange_id, t.initial_balance, t.scan_interval_minutes, t.is_running,
+			COALESCE(t.btc_eth_leverage, 5) as btc_eth_leverage, COALESCE(t.altcoin_leverage, 5) as altcoin_leverage,
+			COALESCE(t.trading_symbols, '') as trading_symbols,
+			COALESCE(t.use_coin_pool, false) as use_coin_pool, COALESCE(t.use_oi_top, false) as use_oi_top,
+			COALESCE(t.custom_prompt, '') as custom_prompt, COALESCE(t.override_base_prompt, false) as override_base_prompt,
+			COALESCE(t.system_prompt_template, 'default') as system_prompt_template,
+			COALESCE(t.is_cross_margin, true) as is_cross_margin,
+			COALESCE(t.kline_intervals, '') as kline_intervals,
+			t.created_at, t.updated_at,
 			a.id, a.user_id, a.name, a.provider, a.enabled, a.api_key, a.created_at, a.updated_at,
 			e.id, e.user_id, e.name, e.type, e.enabled, e.api_key, e.secret_key, e.testnet,
 			COALESCE(e.hyperliquid_wallet_addr, '') as hyperliquid_wallet_addr,
@@ -728,6 +737,10 @@ func (d *PostgreSQLDatabase) GetTraderConfig(userID, traderID string) (*TraderRe
 	`, traderID, userID).Scan(
 		&trader.ID, &trader.UserID, &trader.Name, &trader.AIModelID, &trader.ExchangeID,
 		&trader.InitialBalance, &trader.ScanIntervalMinutes, &trader.IsRunning,
+		&trader.BTCETHLeverage, &trader.AltcoinLeverage, &trader.TradingSymbols,
+		&trader.UseCoinPool, &trader.UseOITop,
+		&trader.CustomPrompt, &trader.OverrideBasePrompt, &trader.SystemPromptTemplate,
+		&trader.IsCrossMargin, &trader.KlineIntervals,
 		&trader.CreatedAt, &trader.UpdatedAt,
 		&aiModel.ID, &aiModel.UserID, &aiModel.Name, &aiModel.Provider, &aiModel.Enabled, &aiModel.APIKey,
 		&aiModel.CreatedAt, &aiModel.UpdatedAt,

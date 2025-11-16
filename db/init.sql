@@ -160,6 +160,7 @@ INSERT INTO system_config (key, value) VALUES
 ('api_server_port', '8080'),
 ('use_default_coins', 'true'),
 ('default_coins', '["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT","ADAUSDT","HYPEUSDT"]'),
+('default_kline_intervals', '1m,15m,4h'),
 ('max_daily_loss', '10.0'),
 ('max_drawdown', '20.0'),
 ('stop_trading_minutes', '60'),
@@ -169,6 +170,9 @@ ON CONFLICT (key) DO NOTHING;
 
 -- 数据库迁移：添加 deleted 字段到现有 ai_models 表
 ALTER TABLE ai_models ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE;
+
+-- 数据库迁移：添加 kline_intervals 字段到现有 traders 表
+ALTER TABLE traders ADD COLUMN IF NOT EXISTS kline_intervals TEXT DEFAULT '1m,15m,4h';
 
 -- 创建索引
 CREATE INDEX IF NOT EXISTS idx_ai_models_user_id ON ai_models(user_id);

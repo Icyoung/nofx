@@ -75,6 +75,9 @@ type AutoTraderConfig struct {
 
 	// 系统提示词模板
 	SystemPromptTemplate string // 系统提示词模板名称（如 "default", "aggressive"）
+
+	// K线时间间隔配置
+	KlineIntervals []string // K线时间间隔列表（如 ["3m", "4h"] 或 ["5m", "1h", "1d"]）
 }
 
 // AutoTrader 自动交易器
@@ -107,6 +110,7 @@ type AutoTrader struct {
 	lastBalanceSyncTime   time.Time          // 上次余额同步时间
 	database              interface{}        // 数据库引用（用于自动更新余额）
 	userID                string             // 用户ID
+	klineIntervals        []string           // K线时间间隔列表
 }
 
 // NewAutoTrader 创建自动交易器
@@ -210,6 +214,12 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		systemPromptTemplate = "adaptive"
 	}
 
+	// 设置K线时间间隔（默认为 3m,4h）
+	klineIntervals := config.KlineIntervals
+	if len(klineIntervals) == 0 {
+		klineIntervals = []string{"3m", "4h"} // 默认值
+	}
+
 	return &AutoTrader{
 		id:                    config.ID,
 		name:                  config.Name,
@@ -235,6 +245,7 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		lastBalanceSyncTime:   time.Now(), // 初始化为当前时间
 		database:              database,
 		userID:                userID,
+		klineIntervals:        klineIntervals, // K线时间间隔配置
 	}, nil
 }
 
@@ -614,6 +625,7 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 		CallCount:       at.callCount,
 		BTCETHLeverage:  at.config.BTCETHLeverage,  // 使用配置的杠杆倍数
 		AltcoinLeverage: at.config.AltcoinLeverage, // 使用配置的杠杆倍数
+		KlineIntervals:  at.klineIntervals,         // 使用配置的K线时间间隔
 		Account: decision.AccountInfo{
 			TotalEquity:      totalEquity,
 			AvailableBalance: availableBalance,
@@ -1421,6 +1433,8 @@ func sortDecisionsByPriority(decisions []decision.Decision) []decision.Decision 
 
 // getCandidateCoins 获取交易员的候选币种列表
 func (at *AutoTrader) getCandidateCoins() ([]decision.CandidateCoin, error) {
+	log.Printf("🔍 [DEBUG] [%s] getCandidateCoins: tradingCoins=%v (len=%d), defaultCoins=%v (len=%d)", 
+		at.name, at.tradingCoins, len(at.tradingCoins), at.defaultCoins, len(at.defaultCoins))
 	if len(at.tradingCoins) == 0 {
 		// 使用数据库配置的默认币种列表
 		var candidateCoins []decision.CandidateCoin

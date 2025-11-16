@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import HeaderBar from '../components/HeaderBar'
 import { Container } from '../components/Container'
 import { useLanguage } from '../contexts/LanguageContext'
@@ -14,6 +14,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { language, setLanguage } = useLanguage()
   const { user, logout } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
 
   // 根据路径自动判断当前页面
   const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'faq' => {
@@ -36,8 +37,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
         onLanguageChange={setLanguage}
         user={user}
         onLogout={logout}
-        onPageChange={() => {
-          // React Router handles navigation now
+        onPageChange={(page: string) => {
+          // 使用React Router进行导航
+          switch (page) {
+            case 'competition':
+              navigate('/competition')
+              break
+            case 'traders':
+              navigate('/traders')
+              break
+            case 'trader':
+              navigate('/dashboard')
+              break
+            case 'faq':
+              navigate('/faq')
+              break
+            default:
+              navigate('/competition')
+          }
         }}
       />
 

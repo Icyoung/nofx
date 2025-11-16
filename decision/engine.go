@@ -85,6 +85,7 @@ type Context struct {
 	Performance     interface{}             `json:"-"` // 历史表现分析（logger.PerformanceAnalysis）
 	BTCETHLeverage  int                     `json:"-"` // BTC/ETH杠杆倍数（从配置读取）
 	AltcoinLeverage int                     `json:"-"` // 山寨币杠杆倍数（从配置读取）
+	KlineIntervals  []string                `json:"-"` // K线时间间隔配置（从交易员配置读取）
 }
 
 // Decision AI的交易决策
@@ -195,7 +196,14 @@ func fetchMarketDataForContext(ctx *Context) error {
 	}
 
 	for symbol := range symbolSet {
-		data, err := market.Get(symbol)
+		// 使用Context中配置的K线间隔获取市场数据
+		var data *market.Data
+		var err error
+		if len(ctx.KlineIntervals) > 0 {
+			data, err = market.GetWithIntervals(symbol, ctx.KlineIntervals)
+		} else {
+			data, err = market.Get(symbol) // 使用默认间隔
+		}
 		if err != nil {
 			// 单个币种失败不影响整体，只记录错误
 			continue
