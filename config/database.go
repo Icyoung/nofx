@@ -100,12 +100,12 @@ type TraderRecord struct {
 	BTCETHLeverage       int       `json:"btc_eth_leverage"`
 	AltcoinLeverage      int       `json:"altcoin_leverage"`
 	TradingSymbols       string    `json:"trading_symbols"`
-	UseCoinPool          bool      `json:"use_coin_pool"`
-	UseOITop             bool      `json:"use_oi_top"`
 	CustomPrompt         string    `json:"custom_prompt"`
 	OverrideBasePrompt   bool      `json:"override_base_prompt"`
 	SystemPromptTemplate string    `json:"system_prompt_template"`
 	IsCrossMargin        bool      `json:"is_cross_margin"`
+	UseCoinPool          bool      `json:"use_coin_pool"`
+	UseOITop             bool      `json:"use_oi_top"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
@@ -118,6 +118,41 @@ type UserSignalSource struct {
 	OITopURL    string    `json:"oi_top_url"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// BetaCode 内测码配置
+type BetaCode struct {
+	Code      string    `json:"code"`
+	Used      bool      `json:"used"`
+	UsedBy    string    `json:"used_by"`
+	UsedAt    time.Time `json:"used_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// DatabaseConfig 数据库连接配置
+type DatabaseConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Database string
+}
+
+// NewDatabaseConfig 创建数据库配置
+func NewDatabaseConfig(host string, port int, user, password, database string) *DatabaseConfig {
+	return &DatabaseConfig{
+		Host:     host,
+		Port:     port,
+		User:     user,
+		Password: password,
+		Database: database,
+	}
+}
+
+// FormatDSN 格式化数据库连接字符串
+func (c *DatabaseConfig) FormatDSN() string {
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		c.Host, c.Port, c.User, c.Password, c.Database)
 }
 
 // NewDatabase 创建数据库连接（仅支持 PostgreSQL）

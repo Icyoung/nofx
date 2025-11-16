@@ -6,7 +6,6 @@ import (
 	"log"
 	"nofx/api"
 	"nofx/auth"
-	"nofx/bootstrap"
 	"nofx/config"
 	"nofx/crypto"
 	"nofx/manager"
@@ -35,6 +34,7 @@ type ConfigFile struct {
 	MaxDrawdown        float64               `json:"max_drawdown"`
 	StopTradingMinutes int                   `json:"stop_trading_minutes"`
 	Leverage           config.LeverageConfig `json:"leverage"`
+	JWTSecret          string                `json:"jwt_secret"`
 	DataKLineTime      string                `json:"data_k_line_time"`
 	Log                *config.LogConfig     `json:"log"` // 日志配置
 }
@@ -165,13 +165,13 @@ func main() {
 	}
 	defer database.Close()
 
-	// 初始化加密服务（用于敏感数据加密存储与传输）
-	cryptoService, err := crypto.NewCryptoService("keys/rsa_private.key")
+	// 初始化加密服务
+	log.Printf("🔐 初始化加密服务...")
+	cryptoService, err := crypto.NewCryptoService("secrets/rsa_key")
 	if err != nil {
 		log.Fatalf("❌ 初始化加密服务失败: %v", err)
 	}
 	database.SetCryptoService(cryptoService)
-
 	log.Printf("✅ 加密服务初始化成功")
 
 	// 同步config.json到数据库
@@ -196,7 +196,6 @@ func main() {
 	}
 	auth.SetJWTSecret(jwtSecret)
 
-	// 管理员模式下需要管理员密码，缺失则退出
 	log.Printf("✓ 配置数据库初始化成功")
 	fmt.Println()
 
@@ -272,12 +271,12 @@ func main() {
 
 	// 创建初始化上下文
 	// TODO : 传入实际配置, 现在并未实际使用，未来所有模块初始化都将通过上下文传递配置
-	ctx := bootstrap.NewContext(&config.Config{})
+	// ctx := bootstrap.NewContext(&config.Config{})
 
-	// 执行所有初始化钩子
-	if err := bootstrap.Run(ctx); err != nil {
-		log.Fatalf("初始化失败: %v", err)
-	}
+	// // 执行所有初始化钩子
+	// if err := bootstrap.Run(ctx); err != nil {
+	// 	log.Fatalf("初始化失败: %v", err)
+	// }
 
 	fmt.Println()
 	fmt.Println("🤖 AI全权决策模式:")

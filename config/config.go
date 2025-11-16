@@ -41,7 +41,8 @@ type Config struct {
 	Leverage           LeverageConfig `json:"leverage"`     // 杠杆配置
 	DataKLineTime      string         `json:"data_k_line_time"`
 	Proxy              *ProxyConfig   `json:"proxy"` // HTTP 代理配置（可选）
-	Log                *LogConfig     `json:"log"`   // 日志配置
+	JWTSecret          string         `json:"jwt_secret"`
+	Log                *LogConfig     `json:"log"` // 日志配置
 }
 
 // ProxyConfig HTTP 代理配置

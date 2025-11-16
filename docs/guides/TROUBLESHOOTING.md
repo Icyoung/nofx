@@ -420,6 +420,7 @@ docker compose up -d
    ```bash
    df -h  # Ensure disk not full
    ```
+
 ---
 
 ## 📊 How to Capture Logs

@@ -444,9 +444,6 @@ func (t *AsterTrader) GetBalance() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	// 🔍 调试：打印原始API响应
-	log.Printf("🔍 Aster API原始响应: %s", string(body))
-
 	// 查找USDT余额
 	availableBalance := 0.0
 	crossUnPnl := 0.0
@@ -454,9 +451,6 @@ func (t *AsterTrader) GetBalance() (map[string]interface{}, error) {
 	foundUSDT := false
 
 	for _, bal := range balances {
-		// 🔍 调试：打印每条余额记录
-		log.Printf("🔍 余额记录: %+v", bal)
-
 		if asset, ok := bal["asset"].(string); ok && asset == "USDT" {
 			foundUSDT = true
 

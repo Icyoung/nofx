@@ -239,10 +239,9 @@ start() {
     # 读取环境变量
     read_env_vars
 
-    # 确保必要的目录存在
     if [ ! -d "decision_logs" ]; then
         print_info "创建日志目录..."
-        mkdir -p decision_logs
+        install -m 700 -d decision_logs
     fi
 
     # Auto-build frontend if missing or forced
