@@ -186,7 +186,12 @@ func main() {
 
 	// 获取系统配置
 	useDefaultCoinsStr, _ := database.GetSystemConfig("use_default_coins")
-	useDefaultCoins := useDefaultCoinsStr == "true"
+	useDefaultCoins := false
+	if useDefaultCoinsStr != nil {
+		if str, ok := useDefaultCoinsStr.(string); ok {
+			useDefaultCoins = str == "true"
+		}
+	}
 	apiPortStr, _ := database.GetSystemConfig("api_server_port")
 
 	// 设置JWT密钥（优先使用环境变量）
@@ -203,13 +208,15 @@ func main() {
 	defaultCoinsJSON, _ := database.GetSystemConfig("default_coins")
 	var defaultCoins []string
 
-	if defaultCoinsJSON != "" {
-		// 尝试从JSON解析
-		if err := json.Unmarshal([]byte(defaultCoinsJSON), &defaultCoins); err != nil {
-			log.Printf("⚠️  解析default_coins配置失败: %v，使用硬编码默认值", err)
-			defaultCoins = []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "HYPEUSDT"}
-		} else {
-			log.Printf("✓ 从数据库加载默认币种列表（共%d个）: %v", len(defaultCoins), defaultCoins)
+	if defaultCoinsJSON != nil {
+		if str, ok := defaultCoinsJSON.(string); ok && str != "" {
+			// 尝试从JSON解析
+			if err := json.Unmarshal([]byte(str), &defaultCoins); err != nil {
+				log.Printf("⚠️  解析default_coins配置失败: %v，使用硬编码默认值", err)
+				defaultCoins = []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "HYPEUSDT"}
+			} else {
+				log.Printf("✓ 从数据库加载默认币种列表（共%d个）: %v", len(defaultCoins), defaultCoins)
+			}
 		}
 	} else {
 		// 如果数据库中没有配置，使用硬编码默认值
@@ -226,15 +233,19 @@ func main() {
 
 	// 设置币种池API URL
 	coinPoolAPIURL, _ := database.GetSystemConfig("coin_pool_api_url")
-	if coinPoolAPIURL != "" {
-		pool.SetCoinPoolAPI(coinPoolAPIURL)
-		log.Printf("✓ 已配置AI500币种池API")
+	if coinPoolAPIURL != nil {
+		if str, ok := coinPoolAPIURL.(string); ok && str != "" {
+			pool.SetCoinPoolAPI(str)
+			log.Printf("✓ 已配置AI500币种池API")
+		}
 	}
 
 	oiTopAPIURL, _ := database.GetSystemConfig("oi_top_api_url")
-	if oiTopAPIURL != "" {
-		pool.SetOITopAPI(oiTopAPIURL)
-		log.Printf("✓ 已配置OI Top API")
+	if oiTopAPIURL != nil {
+		if str, ok := oiTopAPIURL.(string); ok && str != "" {
+			pool.SetOITopAPI(str)
+			log.Printf("✓ 已配置OI Top API")
+		}
 	}
 
 	// 创建TraderManager
@@ -302,11 +313,13 @@ func main() {
 		} else {
 			log.Printf("⚠️  环境变量 NOFX_BACKEND_PORT 无效: %s", envPort)
 		}
-	} else if apiPortStr != "" {
+	} else if apiPortStr != nil {
 		// 2. 从数据库配置读取（config.json 同步过来的）
-		if port, err := strconv.Atoi(apiPortStr); err == nil && port > 0 {
-			apiPort = port
-			log.Printf("🔌 使用数据库配置端口: %d (api_server_port)", apiPort)
+		if str, ok := apiPortStr.(string); ok && str != "" {
+			if port, err := strconv.Atoi(str); err == nil && port > 0 {
+				apiPort = port
+				log.Printf("🔌 使用数据库配置端口: %d (api_server_port)", apiPort)
+			}
 		}
 	} else {
 		log.Printf("🔌 使用默认端口: %d", apiPort)
@@ -321,7 +334,7 @@ func main() {
 	}()
 
 	// 初始化 kline 服务（3m/4h）
-	customCoins := database.GetCustomCoins()
+	customCoins, _ := database.GetCustomCoins()
 	opts := kline.Options{
 		BatchSize:             150,
 		BackfillWindow:        100,

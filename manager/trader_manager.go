@@ -52,14 +52,14 @@ func (tm *TraderManager) LoadTradersFromDatabase(database config.DatabaseInterfa
 	log.Printf("📋 发现 %d 个用户，开始加载所有交易员配置...", len(userIDs))
 
 	var allTraders []*config.TraderRecord
-	for _, userID := range userIDs {
+	for _, user := range userIDs {
 		// 获取每个用户的交易员
-		traders, err := database.GetTraders(userID)
+		traders, err := database.GetTraders(user.ID)
 		if err != nil {
-			log.Printf("⚠️ 获取用户 %s 的交易员失败: %v", userID, err)
+			log.Printf("⚠️ 获取用户 %s 的交易员失败: %v", user.ID, err)
 			continue
 		}
-		log.Printf("📋 用户 %s: %d 个交易员", userID, len(traders))
+		log.Printf("📋 用户 %s: %d 个交易员", user.ID, len(traders))
 		allTraders = append(allTraders, traders...)
 	}
 
@@ -73,26 +73,40 @@ func (tm *TraderManager) LoadTradersFromDatabase(database config.DatabaseInterfa
 
 	// 解析配置
 	maxDailyLoss := 10.0 // 默认值
-	if val, err := strconv.ParseFloat(maxDailyLossStr, 64); err == nil {
-		maxDailyLoss = val
+	if maxDailyLossStr != nil {
+		if str, ok := maxDailyLossStr.(string); ok {
+			if val, err := strconv.ParseFloat(str, 64); err == nil {
+				maxDailyLoss = val
+			}
+		}
 	}
 
 	maxDrawdown := 20.0 // 默认值
-	if val, err := strconv.ParseFloat(maxDrawdownStr, 64); err == nil {
-		maxDrawdown = val
+	if maxDrawdownStr != nil {
+		if str, ok := maxDrawdownStr.(string); ok {
+			if val, err := strconv.ParseFloat(str, 64); err == nil {
+				maxDrawdown = val
+			}
+		}
 	}
 
 	stopTradingMinutes := 60 // 默认值
-	if val, err := strconv.Atoi(stopTradingMinutesStr); err == nil {
-		stopTradingMinutes = val
+	if stopTradingMinutesStr != nil {
+		if str, ok := stopTradingMinutesStr.(string); ok {
+			if val, err := strconv.Atoi(str); err == nil {
+				stopTradingMinutes = val
+			}
+		}
 	}
 
 	// 解析默认币种列表
 	var defaultCoins []string
-	if defaultCoinsStr != "" {
-		if err := json.Unmarshal([]byte(defaultCoinsStr), &defaultCoins); err != nil {
+	if defaultCoinsStr != nil {
+		if str, ok := defaultCoinsStr.(string); ok && str != "" {
+			if err := json.Unmarshal([]byte(str), &defaultCoins); err != nil {
 			log.Printf("⚠️ 解析默认币种配置失败: %v，使用空列表", err)
-			defaultCoins = []string{}
+				defaultCoins = []string{}
+			}
 		}
 	}
 
@@ -590,48 +604,51 @@ func (tm *TraderManager) getConcurrentTraderData(traders []*trader.AutoTrader) [
 			case account := <-accountChan:
 				// 成功获取账户信息
 				traderData = map[string]interface{}{
-					"trader_id":       trader.GetID(),
-					"trader_name":     trader.GetName(),
-					"ai_model":        trader.GetAIModel(),
-					"exchange":        trader.GetExchange(),
-					"total_equity":    account["total_equity"],
-					"total_pnl":       account["total_pnl"],
-					"total_pnl_pct":   account["total_pnl_pct"],
-					"position_count":  account["position_count"],
-					"margin_used_pct": account["margin_used_pct"],
-					"is_running":      status["is_running"],
+					"trader_id":              trader.GetID(),
+					"trader_name":            trader.GetName(),
+					"ai_model":               trader.GetAIModel(),
+					"exchange":               trader.GetExchange(),
+					"total_equity":           account["total_equity"],
+					"total_pnl":              account["total_pnl"],
+					"total_pnl_pct":          account["total_pnl_pct"],
+					"position_count":         account["position_count"],
+					"margin_used_pct":        account["margin_used_pct"],
+					"is_running":             status["is_running"],
+					"system_prompt_template": trader.GetSystemPromptTemplate(),
 				}
 			case err := <-errorChan:
 				// 获取账户信息失败
 				log.Printf("⚠️ 获取交易员 %s 账户信息失败: %v", trader.GetID(), err)
 				traderData = map[string]interface{}{
-					"trader_id":       trader.GetID(),
-					"trader_name":     trader.GetName(),
-					"ai_model":        trader.GetAIModel(),
-					"exchange":        trader.GetExchange(),
-					"total_equity":    0.0,
-					"total_pnl":       0.0,
-					"total_pnl_pct":   0.0,
-					"position_count":  0,
-					"margin_used_pct": 0.0,
-					"is_running":      status["is_running"],
-					"error":           "账户数据获取失败",
+					"trader_id":              trader.GetID(),
+					"trader_name":            trader.GetName(),
+					"ai_model":               trader.GetAIModel(),
+					"exchange":               trader.GetExchange(),
+					"total_equity":           0.0,
+					"total_pnl":              0.0,
+					"total_pnl_pct":          0.0,
+					"position_count":         0,
+					"margin_used_pct":        0.0,
+					"is_running":             status["is_running"],
+					"system_prompt_template": trader.GetSystemPromptTemplate(),
+					"error":                  "账户数据获取失败",
 				}
 			case <-ctx.Done():
 				// 超时
 				log.Printf("⏰ 获取交易员 %s 账户信息超时", trader.GetID())
 				traderData = map[string]interface{}{
-					"trader_id":       trader.GetID(),
-					"trader_name":     trader.GetName(),
-					"ai_model":        trader.GetAIModel(),
-					"exchange":        trader.GetExchange(),
-					"total_equity":    0.0,
-					"total_pnl":       0.0,
-					"total_pnl_pct":   0.0,
-					"position_count":  0,
-					"margin_used_pct": 0.0,
-					"is_running":      status["is_running"],
-					"error":           "获取超时",
+					"trader_id":              trader.GetID(),
+					"trader_name":            trader.GetName(),
+					"ai_model":               trader.GetAIModel(),
+					"exchange":               trader.GetExchange(),
+					"total_equity":           0.0,
+					"total_pnl":              0.0,
+					"total_pnl_pct":          0.0,
+					"position_count":         0,
+					"margin_used_pct":        0.0,
+					"is_running":             status["is_running"],
+					"system_prompt_template": trader.GetSystemPromptTemplate(),
+					"error":                  "获取超时",
 				}
 			}
 
@@ -739,26 +756,40 @@ func (tm *TraderManager) LoadUserTraders(database config.DatabaseInterface, user
 
 	// 解析配置
 	maxDailyLoss := 10.0 // 默认值
-	if val, err := strconv.ParseFloat(maxDailyLossStr, 64); err == nil {
-		maxDailyLoss = val
+	if maxDailyLossStr != nil {
+		if str, ok := maxDailyLossStr.(string); ok {
+			if val, err := strconv.ParseFloat(str, 64); err == nil {
+				maxDailyLoss = val
+			}
+		}
 	}
 
 	maxDrawdown := 20.0 // 默认值
-	if val, err := strconv.ParseFloat(maxDrawdownStr, 64); err == nil {
-		maxDrawdown = val
+	if maxDrawdownStr != nil {
+		if str, ok := maxDrawdownStr.(string); ok {
+			if val, err := strconv.ParseFloat(str, 64); err == nil {
+				maxDrawdown = val
+			}
+		}
 	}
 
 	stopTradingMinutes := 60 // 默认值
-	if val, err := strconv.Atoi(stopTradingMinutesStr); err == nil {
-		stopTradingMinutes = val
+	if stopTradingMinutesStr != nil {
+		if str, ok := stopTradingMinutesStr.(string); ok {
+			if val, err := strconv.Atoi(str); err == nil {
+				stopTradingMinutes = val
+			}
+		}
 	}
 
 	// 解析默认币种列表
 	var defaultCoins []string
-	if defaultCoinsStr != "" {
-		if err := json.Unmarshal([]byte(defaultCoinsStr), &defaultCoins); err != nil {
+	if defaultCoinsStr != nil {
+		if str, ok := defaultCoinsStr.(string); ok && str != "" {
+			if err := json.Unmarshal([]byte(str), &defaultCoins); err != nil {
 			log.Printf("⚠️ 解析默认币种配置失败: %v，使用空列表", err)
-			defaultCoins = []string{}
+				defaultCoins = []string{}
+			}
 		}
 	}
 
@@ -954,26 +985,40 @@ func (tm *TraderManager) LoadTraderByID(database config.DatabaseInterface, userI
 
 	// 7. 解析系统配置
 	maxDailyLoss := 10.0 // 默认值
-	if val, err := strconv.ParseFloat(maxDailyLossStr, 64); err == nil {
-		maxDailyLoss = val
+	if maxDailyLossStr != nil {
+		if str, ok := maxDailyLossStr.(string); ok {
+			if val, err := strconv.ParseFloat(str, 64); err == nil {
+				maxDailyLoss = val
+			}
+		}
 	}
 
 	maxDrawdown := 20.0 // 默认值
-	if val, err := strconv.ParseFloat(maxDrawdownStr, 64); err == nil {
-		maxDrawdown = val
+	if maxDrawdownStr != nil {
+		if str, ok := maxDrawdownStr.(string); ok {
+			if val, err := strconv.ParseFloat(str, 64); err == nil {
+				maxDrawdown = val
+			}
+		}
 	}
 
 	stopTradingMinutes := 60 // 默认值
-	if val, err := strconv.Atoi(stopTradingMinutesStr); err == nil {
-		stopTradingMinutes = val
+	if stopTradingMinutesStr != nil {
+		if str, ok := stopTradingMinutesStr.(string); ok {
+			if val, err := strconv.Atoi(str); err == nil {
+				stopTradingMinutes = val
+			}
+		}
 	}
 
 	// 解析默认币种列表
 	var defaultCoins []string
-	if defaultCoinsStr != "" {
-		if err := json.Unmarshal([]byte(defaultCoinsStr), &defaultCoins); err != nil {
+	if defaultCoinsStr != nil {
+		if str, ok := defaultCoinsStr.(string); ok && str != "" {
+			if err := json.Unmarshal([]byte(str), &defaultCoins); err != nil {
 			log.Printf("⚠️ 解析默认币种配置失败: %v，使用空列表", err)
-			defaultCoins = []string{}
+				defaultCoins = []string{}
+			}
 		}
 	}
 
@@ -1085,4 +1130,16 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 	tm.traders[traderCfg.ID] = at
 	log.Printf("✓ Trader '%s' (%s + %s) 已为用户加载到内存", traderCfg.Name, aiModelCfg.Provider, exchangeCfg.ID)
 	return nil
+}
+
+// RemoveTrader 从内存中移除指定的trader（不影响数据库）
+// 用于更新trader配置时强制重新加载
+func (tm *TraderManager) RemoveTrader(traderID string) {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+
+	if _, exists := tm.traders[traderID]; exists {
+		delete(tm.traders, traderID)
+		log.Printf("✓ Trader %s 已从内存中移除", traderID)
+	}
 }

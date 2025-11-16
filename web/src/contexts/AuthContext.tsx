@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { getSystemConfig } from '../lib/config'
-import { CryptoService } from '../lib/crypto'
 import { reset401Flag } from '../lib/httpClient'
 
 interface User {
@@ -109,33 +108,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const systemConfig = await getSystemConfig()
-      if (!systemConfig.rsa_public_key) {
-        throw new Error('系统未配置登录所需的RSA公钥')
-      }
-
-      await CryptoService.initialize(systemConfig.rsa_public_key)
-      const sessionId = sessionStorage.getItem('session_id') || ''
-
-      const requestBody = {
-        email_encrypted: await CryptoService.encryptSensitiveData(
-          email,
-          email,
-          sessionId
-        ),
-        password_encrypted: await CryptoService.encryptSensitiveData(
-          password,
-          email,
-          sessionId
-        ),
-      }
-
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ email, password }),
       })
 
       const data = await response.json()
@@ -153,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      console.error('Login request failed:', error)
       return { success: false, message: '登录失败，请重试' }
     }
 
