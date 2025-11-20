@@ -188,16 +188,28 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		logger.Infof("🏦 [%s] 使用Hyperliquid交易", config.Name)
 		// 解析 Hyperliquid 私钥（支持加密格式和后端托管的 Agent Wallet）
 		privateKey := config.HyperliquidPrivateKey
+		var db *sqlx.DB
 		if database != nil {
-			if db, ok := database.(*sqlx.DB); ok {
-				decryptedKey, decryptErr := crypto.ResolveHyperliquidPrivateKey(db, config.HyperliquidPrivateKey)
+			// 兼容传入 *sqlx.DB 或实现 GetDB 的接口（如 config.DatabaseInterface）
+			if directDB, ok := database.(*sqlx.DB); ok {
+				db = directDB
+			} else if getter, ok := database.(interface{ GetDB() interface{} }); ok {
+				if sqlxDB, ok := getter.GetDB().(*sqlx.DB); ok {
+					db = sqlxDB
+				}
+			}
+			if db != nil && strings.HasPrefix(strings.ToUpper(privateKey), "BACKEND_AGENT:") {
+				decryptedKey, decryptErr := crypto.ResolveHyperliquidPrivateKey(db, privateKey)
 				if decryptErr != nil {
-					logger.Warnf("⚠️ 解析 Hyperliquid 私钥失败，尝试使用原始值: %v", decryptErr)
-					// 如果解密失败，可能是未加密的私钥，继续使用原始值
+					logger.Warnf("⚠️ 解析 Hyperliquid 私钥失败（继续使用原值）: %v", decryptErr)
 				} else {
 					privateKey = decryptedKey
 				}
 			}
+		}
+		// 兜底：如果仍然是 BACKEND_AGENT 占位符，直接报错提示未解密
+		if strings.HasPrefix(strings.ToUpper(privateKey), "BACKEND_AGENT:") {
+			return nil, fmt.Errorf("Hyperliquid Agent 私钥未解密，请确认 Agent Wallet 已激活且后端可访问数据库")
 		}
 		trader, err = NewHyperliquidTrader(privateKey, config.HyperliquidWalletAddr, config.HyperliquidTestnet)
 		if err != nil {
@@ -213,9 +225,9 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		return nil, fmt.Errorf("不支持的交易平台: %s", config.Exchange)
 	}
 
-	// 初始金额可为0：若未填则后续以实时净值为准，仅记录日志
-	if config.InitialBalance <= 0 {
-		log.Printf("⚠️ [%s] 未设置初始金额 (InitialBalance<=0)，将使用实时账户净值作为后续计算基准", config.Name)
+	// 初始金额可为0：未填则后续以实时净值为准（不再拦截）
+	if config.InitialBalance < 0 {
+		config.InitialBalance = 0
 	}
 
 	// 初始化决策日志记录器（使用trader ID创建独立目录）

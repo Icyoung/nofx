@@ -773,7 +773,7 @@ func containsUserPrefix(traderID string) bool {
 
 // resolveHyperliquidPrivateKey 统一解析 Hyperliquid 私钥，支持后端托管的 Agent 钱包
 func resolveHyperliquidPrivateKey(database config.DatabaseInterface, apiKey string) (string, error) {
-	if !strings.HasPrefix(apiKey, "BACKEND_AGENT:") {
+	if !strings.HasPrefix(strings.ToUpper(apiKey), "BACKEND_AGENT:") {
 		// 手动输入的私钥，直接返回
 		return apiKey, nil
 	}
