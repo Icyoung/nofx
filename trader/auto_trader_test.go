@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"nofx/config"
 	"nofx/decision"
 	"nofx/logger"
 	"nofx/market"
@@ -973,6 +974,51 @@ func (m *MockDatabase) UpdateTraderInitialBalance(userID, traderID string, newBa
 	}
 	return nil
 }
+
+func (m *MockDatabase) Close() error {
+	return nil
+}
+
+// 实现 DatabaseInterface 的其他必需方法（空实现）
+func (m *MockDatabase) CreateUser(user *config.User) error                           { return nil }
+func (m *MockDatabase) GetUserByEmail(email string) (*config.User, error)            { return nil, nil }
+func (m *MockDatabase) GetUserByID(userID string) (*config.User, error)              { return nil, nil }
+func (m *MockDatabase) UpdateUserOTPVerified(userID string, verified bool) error     { return nil }
+func (m *MockDatabase) UpdateUserPassword(userID, newPasswordHash string) error      { return nil }
+func (m *MockDatabase) GetAIModelsByUserID(userID string) ([]config.AIModelConfig, error) { return nil, nil }
+func (m *MockDatabase) CreateAIModel(userID, id, name, provider string, enabled bool, apiKey, customAPIURL string) error { return nil }
+func (m *MockDatabase) UpdateAIModel(model *config.AIModelConfig) error              { return nil }
+func (m *MockDatabase) DeleteAIModel(modelID, userID string) error                   { return nil }
+func (m *MockDatabase) GetExchangesByUserID(userID string) ([]config.ExchangeConfig, error) { return nil, nil }
+func (m *MockDatabase) CreateExchange(exchange *config.ExchangeConfig) error         { return nil }
+func (m *MockDatabase) UpdateExchange(exchange *config.ExchangeConfig) error         { return nil }
+func (m *MockDatabase) DeleteExchange(exchangeID, userID string) error               { return nil }
+func (m *MockDatabase) GetTradersByUserID(userID string) ([]config.TraderRecord, error) { return nil, nil }
+func (m *MockDatabase) CreateTrader(trader *config.TraderRecord) error               { return nil }
+func (m *MockDatabase) UpdateTrader(trader *config.TraderRecord) error               { return nil }
+func (m *MockDatabase) DeleteTrader(traderID, userID string) error                   { return nil }
+func (m *MockDatabase) GetTraderByID(traderID, userID string) (*config.TraderRecord, *config.AIModelConfig, *config.ExchangeConfig, error) { return nil, nil, nil, nil }
+func (m *MockDatabase) GetTraderConfig(traderID, userID string) (*config.TraderRecord, *config.AIModelConfig, *config.ExchangeConfig, error) { return nil, nil, nil, nil }
+func (m *MockDatabase) UpdateTraderStatus(traderID, userID string, isRunning bool) error { return nil }
+func (m *MockDatabase) UpdateTraderCustomPrompt(traderID, userID string, customPrompt string, overrideBase bool, systemTemplate string) error { return nil }
+func (m *MockDatabase) GetUserSignalSourceByUserID(userID string) (*config.UserSignalSource, error) { return nil, nil }
+func (m *MockDatabase) GetUserSignalSource(userID string) (*config.UserSignalSource, error) { return nil, nil }
+func (m *MockDatabase) CreateUserSignalSource(source *config.UserSignalSource) error { return nil }
+func (m *MockDatabase) GetAllUsers() ([]config.User, error)                          { return nil, nil }
+func (m *MockDatabase) GetTraders(userID string) ([]*config.TraderRecord, error)     { return nil, nil }
+func (m *MockDatabase) GetSystemConfig(key string) (interface{}, error)              { return nil, nil }
+func (m *MockDatabase) SetSystemConfig(key string, value interface{}) error          { return nil }
+func (m *MockDatabase) GetAIModels(userID string) ([]*config.AIModelConfig, error)   { return nil, nil }
+func (m *MockDatabase) GetExchanges(userID string) ([]*config.ExchangeConfig, error) { return nil, nil }
+func (m *MockDatabase) VerifyBetaCode(code string) (bool, error)                     { return false, nil }
+func (m *MockDatabase) ValidateBetaCode(code string) (bool, error)                   { return false, nil }
+func (m *MockDatabase) UseBetaCode(code, userEmail string) error                     { return nil }
+func (m *MockDatabase) LoadBetaCodesFromFile(filename string) error                  { return nil }
+func (m *MockDatabase) GetBetaCodeStats() (total int, used int, err error)           { return 0, 0, nil }
+func (m *MockDatabase) SetCryptoService(cryptoService interface{}) error             { return nil }
+func (m *MockDatabase) GetCustomCoins() ([]string, error)                            { return nil, nil }
+func (m *MockDatabase) GetDB() interface{}                                            { return nil }
+func (m *MockDatabase) GetAgentWalletEncryptedKey(agentAddress string) (string, error) { return "", nil }
 
 // MockTrader 增强版（添加错误控制）
 type MockTrader struct {

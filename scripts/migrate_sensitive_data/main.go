@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	privateKeyPath := flag.String("key", "keys/rsa_private.key", "RSA 私钥路径")
+	privateKeyPath := flag.String("key", "secrets/rsa_key", "RSA 私钥路径")
 	dryRun := flag.Bool("dry-run", false, "仅检查需要迁移的数据，不写入数据库")
 	flag.Parse()
 
@@ -49,27 +49,10 @@ func main() {
 func run(privateKeyPath string, dryRun bool) error {
 	log.SetFlags(0)
 
-	// 尝试多个可能的私钥路径（从项目根目录运行时）
-	keyPaths := []string{
-		privateKeyPath,         // 用户指定的路径
-		"keys/rsa_private.key", // 项目根目录的 keys 文件夹
-	}
-
-	var finalKeyPath string
-	for _, path := range keyPaths {
-		if _, err := os.Stat(path); err == nil {
-			finalKeyPath = path
-			log.Printf("找到私钥文件: %s", path)
-			break
-		}
-	}
-
-	if finalKeyPath == "" {
-		finalKeyPath = privateKeyPath // 使用默认路径，让 crypto 服务生成新密钥
-		log.Printf("警告: 私钥文件不存在，将使用路径: %s, 系统将尝试生成新密钥", finalKeyPath)
-	}
-
-	cryptoService, err := crypto.NewCryptoService(finalKeyPath)
+	// 直接使用指定的私钥路径
+	log.Printf("使用私钥文件: %s", privateKeyPath)
+	
+	cryptoService, err := crypto.NewCryptoService(privateKeyPath)
 	if err != nil {
 		return fmt.Errorf("初始化加密服务失败: %w", err)
 	}

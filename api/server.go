@@ -22,7 +22,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
 // Server HTTP API服务器
@@ -152,6 +151,7 @@ func (s *Server) setupRoutes() {
 			protected.GET("/agent/status", s.handleGetAgentWallet)
 			protected.POST("/agent/authorize", s.handleAuthorizeAgent)
 			protected.POST("/agent/confirm-builder-fee", s.handleConfirmBuilderFee)
+			protected.GET("/agent/verify-authorization", s.handleVerifyAgentAuthorization)
 
 			// 指定trader的数据（使用query参数 ?trader_id=xxx）
 			protected.GET("/status", s.handleStatus)
@@ -682,16 +682,18 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 			tempTrader = trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID)
 		case "hyperliquid":
 			// 解析 Hyperliquid 私钥（支持后端托管的 Agent Wallet）
-			privateKey, decryptErr := crypto.ResolveHyperliquidPrivateKey(s.database.GetDB().(*sqlx.DB), exchangeCfg.APIKey)
+			privateKey, decryptErr := crypto.ResolveHyperliquidPrivateKey(s.database, exchangeCfg.APIKey)
 			if decryptErr != nil {
 				logger.Errorf("⚠️ 解析 Hyperliquid 私钥失败: %v", decryptErr)
 				createErr = decryptErr
 			} else {
 				tempTrader, createErr = trader.NewHyperliquidTrader(
-					privateKey,
-					exchangeCfg.HyperliquidWalletAddr,
-					exchangeCfg.Testnet,
-				)
+				privateKey,
+				exchangeCfg.HyperliquidWalletAddr,
+				exchangeCfg.Testnet,
+				"0x891dc6f05ad47a3c1a05da55e7a7517971faaf0d",
+				100,
+			)
 			}
 		case "aster":
 			tempTrader, createErr = trader.NewAsterTrader(

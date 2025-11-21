@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"nofx/config"
 	"nofx/crypto"
 	"nofx/decision"
 	"nofx/logger"
@@ -13,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // AutoTraderConfig 自动交易配置（简化版 - AI全权决策）
@@ -103,21 +102,21 @@ type AutoTrader struct {
 	lastResetTime         time.Time
 	stopUntil             time.Time
 	isRunning             bool
-	startTime             time.Time          // 系统启动时间
-	callCount             int                // AI调用次数
-	positionFirstSeenTime map[string]int64   // 持仓首次出现时间 (symbol_side -> timestamp毫秒)
-	stopMonitorCh         chan struct{}      // 用于停止监控goroutine
-	monitorWg             sync.WaitGroup     // 用于等待监控goroutine结束
-	peakPnLCache          map[string]float64 // 最高收益缓存 (symbol -> 峰值盈亏百分比)
-	peakPnLCacheMutex     sync.RWMutex       // 缓存读写锁
-	lastBalanceSyncTime   time.Time          // 上次余额同步时间
-	database              interface{}        // 数据库引用（用于自动更新余额）
-	userID                string             // 用户ID
-	klineIntervals        []string           // K线时间间隔列表
+	startTime             time.Time                // 系统启动时间
+	callCount             int                      // AI调用次数
+	positionFirstSeenTime map[string]int64         // 持仓首次出现时间 (symbol_side -> timestamp毫秒)
+	stopMonitorCh         chan struct{}            // 用于停止监控goroutine
+	monitorWg             sync.WaitGroup           // 用于等待监控goroutine结束
+	peakPnLCache          map[string]float64       // 最高收益缓存 (symbol -> 峰值盈亏百分比)
+	peakPnLCacheMutex     sync.RWMutex             // 缓存读写锁
+	lastBalanceSyncTime   time.Time                // 上次余额同步时间
+	database              config.DatabaseInterface // 数据库引用（用于自动更新余额）
+	userID                string                   // 用户ID
+	klineIntervals        []string                 // K线时间间隔列表
 }
 
 // NewAutoTrader 创建自动交易器
-func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string) (*AutoTrader, error) {
+func NewAutoTrader(config AutoTraderConfig, database config.DatabaseInterface, userID string) (*AutoTrader, error) {
 	// 设置默认值
 	if config.ID == "" {
 		config.ID = "default_trader"
@@ -198,30 +197,19 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		logger.Infof("🏦 [%s] 使用Hyperliquid交易", config.Name)
 		// 解析 Hyperliquid 私钥（支持加密格式和后端托管的 Agent Wallet）
 		privateKey := config.HyperliquidPrivateKey
-		var db *sqlx.DB
-		if database != nil {
-			// 兼容传入 *sqlx.DB 或实现 GetDB 的接口（如 config.DatabaseInterface）
-			if directDB, ok := database.(*sqlx.DB); ok {
-				db = directDB
-			} else if getter, ok := database.(interface{ GetDB() interface{} }); ok {
-				if sqlxDB, ok := getter.GetDB().(*sqlx.DB); ok {
-					db = sqlxDB
-				}
-			}
-			if db != nil && strings.HasPrefix(strings.ToUpper(privateKey), "BACKEND_AGENT:") {
-				decryptedKey, decryptErr := crypto.ResolveHyperliquidPrivateKey(db, privateKey)
-				if decryptErr != nil {
-					logger.Warnf("⚠️ 解析 Hyperliquid 私钥失败（继续使用原值）: %v", decryptErr)
-				} else {
-					privateKey = decryptedKey
-				}
-			}
+
+		if decryptedKey, decryptErr := crypto.ResolveHyperliquidPrivateKey(database, config.HyperliquidPrivateKey); decryptErr != nil {
+			logger.Warnf("⚠️ 解析 Hyperliquid 私钥失败，尝试使用原始值: %v", decryptErr)
+			// 如果解密失败，可能是未加密的私钥，继续使用原始值
+		} else {
+			privateKey = decryptedKey
 		}
-		// 兜底：如果仍然是 BACKEND_AGENT 占位符，直接报错提示未解密
-		if strings.HasPrefix(strings.ToUpper(privateKey), "BACKEND_AGENT:") {
-			return nil, fmt.Errorf("Hyperliquid Agent 私钥未解密，请确认 Agent Wallet 已激活且后端可访问数据库")
-		}
-		trader, err = NewHyperliquidTrader(privateKey, config.HyperliquidWalletAddr, config.HyperliquidTestnet)
+
+		// NOFX Builder Fee 配置（TODO: 後續從資料庫讀取）
+		const NOFX_BUILDER_ADDRESS = "0x891dc6f05ad47a3c1a05da55e7a7517971faaf0d"
+		const NOFX_BUILDER_FEE_RATE = 100 // 100 基點 = 0.01% = 1 basis point
+
+		trader, err = NewHyperliquidTrader(privateKey, config.HyperliquidWalletAddr, config.HyperliquidTestnet, NOFX_BUILDER_ADDRESS, NOFX_BUILDER_FEE_RATE)
 		if err != nil {
 			return nil, fmt.Errorf("初始化Hyperliquid交易器失败: %w", err)
 		}

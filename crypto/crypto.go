@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -52,14 +51,7 @@ func NewCryptoService(privateKeyPath string) (*CryptoService, error) {
 	// 读取私钥文件
 	privateKeyPEM, err := ioutil.ReadFile(privateKeyPath)
 	if err != nil {
-		// 如果私钥文件不存在，生成新的密钥对
-		if err := GenerateRSAKeyPair(privateKeyPath); err != nil {
-			return nil, fmt.Errorf("failed to generate RSA key pair: %w", err)
-		}
-		privateKeyPEM, err = ioutil.ReadFile(privateKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read generated private key: %w", err)
-		}
+		return nil, fmt.Errorf("failed to read private key file %s: %w", privateKeyPath, err)
 	}
 
 	// 解析私钥
@@ -80,51 +72,6 @@ func NewCryptoService(privateKeyPath string) (*CryptoService, error) {
 	}, nil
 }
 
-func GenerateRSAKeyPair(privateKeyPath string) error {
-	// 确保目录存在
-	dir := filepath.Dir(privateKeyPath)
-	if dir != "." {
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", dir, err)
-		}
-	}
-
-	// 生成 RSA 密钥对
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return err
-	}
-
-	// 编码私钥
-	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	})
-
-	// 保存私钥
-	if err := ioutil.WriteFile(privateKeyPath, privateKeyPEM, 0600); err != nil {
-		return err
-	}
-
-	// 编码公钥
-	publicKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return err
-	}
-
-	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: publicKeyDER,
-	})
-
-	// 保存公钥
-	publicKeyPath := privateKeyPath + ".pub"
-	if err := ioutil.WriteFile(publicKeyPath, publicKeyPEM, 0644); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func ParseRSAPrivateKeyFromPEM(pemBytes []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(pemBytes)
