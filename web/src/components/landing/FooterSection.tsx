@@ -1,10 +1,4 @@
-import { t, Language } from '../../i18n/translations'
-
-interface FooterSectionProps {
-  language: Language
-}
-
-export default function FooterSection({ language }: FooterSectionProps) {
+export default function FooterSection() {
   return (
     <footer className="bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.1)] w-full">
       <div className="box-border flex flex-col gap-[32px] items-start px-[64px] py-[48px]">

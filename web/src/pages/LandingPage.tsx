@@ -126,7 +126,7 @@ export function LandingPage() {
             language={language}
           />
         )}
-        <FooterSection language={language} />
+        <FooterSection />
       </div>
     </>
   )
