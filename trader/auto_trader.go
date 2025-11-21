@@ -196,13 +196,9 @@ func NewAutoTrader(config AutoTraderConfig, database config.DatabaseInterface, u
 	case "hyperliquid":
 		logger.Infof("🏦 [%s] 使用Hyperliquid交易", config.Name)
 		// 解析 Hyperliquid 私钥（支持加密格式和后端托管的 Agent Wallet）
-		privateKey := config.HyperliquidPrivateKey
-
-		if decryptedKey, decryptErr := crypto.ResolveHyperliquidPrivateKey(database, config.HyperliquidPrivateKey); decryptErr != nil {
-			logger.Warnf("⚠️ 解析 Hyperliquid 私钥失败，尝试使用原始值: %v", decryptErr)
-			// 如果解密失败，可能是未加密的私钥，继续使用原始值
-		} else {
-			privateKey = decryptedKey
+		privateKey, err := crypto.ResolveHyperliquidPrivateKey(database, config.HyperliquidPrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("解析私钥失败: %w", err)
 		}
 
 		// NOFX Builder Fee 配置（TODO: 後續從資料庫讀取）
