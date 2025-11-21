@@ -84,15 +84,17 @@ func (geminiClient *GeminiClient) SetAPIKey(apiKey string, customURL string, cus
 	}
 }
 
-// buildUrl 构建 Gemini 特定的 URL（API Key 作为查询参数）
+// buildUrl 构建 Gemini 特定的 URL（API Key 通过请求头传递）
 func (geminiClient *GeminiClient) buildUrl() string {
-	// Gemini API 格式: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}
-	return fmt.Sprintf("%s/models/%s:generateContent?key=%s", geminiClient.BaseURL, geminiClient.Model, geminiClient.APIKey)
+	// Gemini API 格式: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+	// API Key 通过 x-goog-api-key 请求头传递
+	return fmt.Sprintf("%s/models/%s:generateContent", geminiClient.BaseURL, geminiClient.Model)
 }
 
-// setAuthHeader Gemini 不需要 Authorization header（API Key 在 URL 中）
+// setAuthHeader 设置 Gemini API 认证请求头（使用 x-goog-api-key）
 func (geminiClient *GeminiClient) setAuthHeader(reqHeaders http.Header) {
-	// Gemini 通过 URL 参数传递 API Key，不需要设置 Authorization header
+	// Gemini 通过 x-goog-api-key 请求头传递 API Key
+	reqHeaders.Set("x-goog-api-key", geminiClient.APIKey)
 }
 
 // buildMCPRequestBody 构建 Gemini 格式的请求体
@@ -261,6 +263,10 @@ func (geminiClient *GeminiClient) callWithRequest(req *Request) (string, error) 
 		return "", fmt.Errorf("创建请求失败: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+
+	// 设置认证头
+	geminiClient.setAuthHeader(httpReq.Header)
+
 	geminiClient.logger.Infof("📨 [%s] 发送 HTTP 请求...", geminiClient.String())
 
 	// 发送 HTTP 请求
