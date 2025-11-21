@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
 import { LandingPage } from '../pages/LandingPage'
+import { VergeXLandingPage } from '../pages/VergeXLandingPage'
 import { FAQPage } from '../pages/FAQPage'
 import { LoginPage } from '../components/LoginPage'
 import { RegisterPage } from '../components/RegisterPage'
@@ -14,6 +15,10 @@ import { AgentWalletBackendPage } from '../pages/AgentWalletBackendPage'
 export const router = createBrowserRouter([
   {
     path: '/',
+    element: <VergeXLandingPage />,
+  },
+  {
+    path: '/old-landing',
     element: <LandingPage />,
   },
   // Auth routes - using AuthLayout

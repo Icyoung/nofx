@@ -6,175 +6,195 @@ interface FooterSectionProps {
 
 export default function FooterSection({ language }: FooterSectionProps) {
   return (
-    <footer
-      style={{
-        borderTop: '1px solid var(--panel-border)',
-        background: 'var(--brand-dark-gray)',
-      }}
-    >
-      <div className="max-w-[1200px] mx-auto px-6 py-10">
-        {/* Brand */}
-        <div className="flex items-center gap-3 mb-8">
-          <img src="/icons/nofx.svg" alt="NOFX Logo" className="w-8 h-8" />
-          <div>
-            <div className="text-lg font-bold" style={{ color: '#EAECEF' }}>
-              NOFX
-            </div>
-            <div className="text-xs" style={{ color: '#848E9C' }}>
-              {t('futureStandardAI', language)}
+    <footer className="bg-[rgba(255,255,255,0.02)] border-t border-[rgba(255,255,255,0.1)] w-full">
+      <div className="box-border flex flex-col gap-[32px] items-start px-[64px] py-[48px]">
+        {/* Main Content */}
+        <div className="flex items-start justify-between w-full">
+          {/* Products */}
+          <div className="flex flex-col font-vergex-body font-normal gap-[12px] items-start shrink-0">
+            <p className="text-[14px] leading-[21px] text-[rgba(255,255,255,0.4)]">
+              Products
+            </p>
+            <a
+              href="/competition"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              AI Competition
+            </a>
+            <a
+              href="/traders"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              AI Trader
+            </a>
+            <a
+              href="/dashboard"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Performance Dashboard
+            </a>
+          </div>
+
+          {/* Resources */}
+          <div className="flex flex-col font-vergex-body font-normal gap-[12px] items-start shrink-0">
+            <p className="text-[14px] leading-[21px] text-[rgba(255,255,255,0.4)]">
+              Resources
+            </p>
+            <a
+              href="/faq"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              FAQ
+            </a>
+            <a
+              href="https://github.com/tinkle-community/nofx/blob/main/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Docs
+            </a>
+            <a
+              href="https://github.com/tinkle-community/nofx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Github
+            </a>
+            <a
+              href="/security"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Security
+            </a>
+          </div>
+
+          {/* Company */}
+          <div className="flex flex-col font-vergex-body font-normal gap-[12px] items-start shrink-0">
+            <p className="text-[14px] leading-[21px] text-[rgba(255,255,255,0.4)]">
+              Company
+            </p>
+            <a
+              href="/about"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              About
+            </a>
+            <a
+              href="/contact"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Contact
+            </a>
+            <a
+              href="/privacy"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Privacy Policy
+            </a>
+            <a
+              href="/terms"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Terms of Use
+            </a>
+          </div>
+
+          {/* Supporters */}
+          <div className="flex flex-col font-vergex-body font-normal gap-[12px] items-start shrink-0">
+            <p className="text-[14px] leading-[21px] text-[rgba(255,255,255,0.4)]">
+              Supporters
+            </p>
+            <a
+              href="https://amber.ac/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Amber.ac (Strategic Investment)
+            </a>
+            <a
+              href="https://www.asterdex.com/en/referral/fdfc0e"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Aster DEX
+            </a>
+            <a
+              href="https://hyperliquid.xyz/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Hyperliquid
+            </a>
+            <a
+              href="https://www.maxweb.red/join?ref=NOFXAI"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[16px] leading-[24px] text-white hover:text-[#998cff] transition-colors no-underline"
+            >
+              Binance
+            </a>
+          </div>
+
+          {/* Follow us */}
+          <div className="flex flex-col gap-[12px] items-start w-[192px] shrink-0">
+            <p className="font-vergex-body font-normal text-[14px] leading-[21px] text-[rgba(255,255,255,0.4)]">
+              Follow us
+            </p>
+            <div className="flex gap-[24px] items-center justify-center">
+              <a
+                href="https://github.com/tinkle-community/nofx"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-[36px] h-[36px] hover:opacity-80 transition-opacity"
+              >
+                <img
+                  src="/vergex/social-icons/github-footer.svg"
+                  alt="GitHub"
+                  className="block max-w-none w-full h-full"
+                />
+              </a>
+              <a
+                href="https://x.com/nofx_official"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-[36px] h-[36px] hover:opacity-80 transition-opacity"
+              >
+                <img
+                  src="/vergex/social-icons/twitter-footer.svg"
+                  alt="Twitter"
+                  className="block max-w-none w-full h-full"
+                />
+              </a>
+              <a
+                href="https://t.me/nofx_dev_community"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-[36px] h-[36px] hover:opacity-80 transition-opacity"
+              >
+                <img
+                  src="/vergex/social-icons/telegram-footer.svg"
+                  alt="Telegram"
+                  className="block max-w-none w-full h-full"
+                />
+              </a>
             </div>
           </div>
         </div>
 
-        {/* Multi-link columns */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-8">
-          <div>
-            <h3
-              className="text-sm font-semibold mb-3"
-              style={{ color: '#EAECEF' }}
-            >
-              {t('links', language)}
-            </h3>
-            <ul className="space-y-2 text-sm" style={{ color: '#848E9C' }}>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://github.com/tinkle-community/nofx"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  GitHub
-                </a>
-              </li>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://t.me/nofx_dev_community"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Telegram
-                </a>
-              </li>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://x.com/nofx_official"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  X (Twitter)
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3
-              className="text-sm font-semibold mb-3"
-              style={{ color: '#EAECEF' }}
-            >
-              {t('resources', language)}
-            </h3>
-            <ul className="space-y-2 text-sm" style={{ color: '#848E9C' }}>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://github.com/tinkle-community/nofx/blob/main/README.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {t('documentation', language)}
-                </a>
-              </li>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://github.com/tinkle-community/nofx/issues"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Issues
-                </a>
-              </li>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://github.com/tinkle-community/nofx/pulls"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Pull Requests
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3
-              className="text-sm font-semibold mb-3"
-              style={{ color: '#EAECEF' }}
-            >
-              {t('supporters', language)}
-            </h3>
-            <ul className="space-y-2 text-sm" style={{ color: '#848E9C' }}>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://www.asterdex.com/en/referral/fdfc0e"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Aster DEX
-                </a>
-              </li>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://www.maxweb.red/join?ref=NOFXAI"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Binance
-                </a>
-              </li>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://hyperliquid.xyz/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Hyperliquid
-                </a>
-              </li>
-              <li>
-                <a
-                  className="hover:text-[#F0B90B]"
-                  href="https://amber.ac/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Amber.ac{' '}
-                  <span className="opacity-70">
-                    {t('strategicInvestment', language)}
-                  </span>
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom note (kept subtle) */}
-        <div
-          className="pt-6 mt-8 text-center text-xs"
-          style={{
-            color: 'var(--text-tertiary)',
-            borderTop: '1px solid var(--panel-border)',
-          }}
-        >
-          <p>{t('footerTitle', language)}</p>
-          <p className="mt-1">{t('footerWarning', language)}</p>
+        {/* Disclaimer */}
+        <div className="font-vergex-body font-normal text-[12px] leading-[18px] text-[rgba(255,255,255,0.4)] shrink-0">
+          <p className="mb-0">
+            DISCLAIMER: Vergex does not custody user funds and operates only
+            with trade-only API permissions. Cryptocurrency trading carries
+            risk. Please assess carefully before participating.
+          </p>
+          <p className="mb-0">&nbsp;</p>
+          <p className="mb-0">© 2025 Vergex. All rights reserved.</p>
         </div>
       </div>
     </footer>
