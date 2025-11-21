@@ -10,200 +10,200 @@ export const OurProductsSection: React.FC = () => {
       <div className="w-[1440px] mx-auto px-[64px] py-[100px] relative">
         {/* Background Blur */}
         <div
-          className="absolute left-1/2 top-[302px] -translate-x-1/2 w-[676px] h-[676px] rounded-full overflow-hidden"
+          className="absolute left-1/2 top-[302px] -translate-x-1/2 w-[676px] h-[676px] rounded-[500px] overflow-hidden"
           style={{ filter: 'blur(300px)' }}
         >
           <img
             src="/vergex/blur-center.png"
             alt=""
-            className="w-[277.94%] h-[208.13%] object-cover"
-            style={{ transform: 'translate(-21.97%, -53.66%)' }}
+            className="absolute w-[277.94%] h-[208.13%] max-w-none"
+            style={{ left: '-21.97%', top: '-53.66%' }}
           />
         </div>
 
-        <h2 className="font-vergex-body font-semibold text-[48px] leading-[72px] text-vergex-text-primary mb-[64px] relative z-10">
+        {/* Title */}
+        <h2 className="font-vergex-body font-semibold text-[48px] leading-[72px] text-white mb-[64px] relative z-10 whitespace-pre-wrap">
           {t('vergex.ourProducts', language)}
         </h2>
 
+        {/* Main Content */}
         <div className="flex items-center justify-between relative z-10">
           {/* Architecture Diagram */}
-          <div className="w-[588.897px] h-[620px] relative">
-            <div className="w-full h-full bg-gradient-to-br from-white/[0.05] to-transparent border border-vergex-border-light rounded-[12px] flex items-center justify-center">
-              <svg width="589" height="620" viewBox="0 0 589 620" fill="none">
-                {/* User Layer */}
-                <g>
-                  <path
-                    d="M100 170 L489 170 L544 254 L489 338 L100 338 L45 254 Z"
-                    fill="rgba(153, 140, 255, 0.1)"
-                    stroke="rgba(153, 140, 255, 0.3)"
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x="294"
-                    y="264"
-                    fill="white"
-                    fontSize="20"
-                    textAnchor="middle"
-                    fontFamily="Red Hat Text"
-                    letterSpacing="0.8"
-                  >
-                    USER
-                  </text>
-                </g>
+          <div className="w-[588.897px] h-[620px] relative shrink-0">
+            {/* Exchange Layer - Bottom */}
+            <div className="absolute left-0 top-[280px] w-[588.897px] h-[340px]">
+              <img
+                src="/vergex/our-products/exchange-layer.svg"
+                alt=""
+                className="block max-w-none w-full h-full"
+              />
+            </div>
 
-                {/* VergeX Layer */}
-                <g>
-                  <path
-                    d="M100 310 L489 310 L544 394 L489 478 L100 478 L45 394 Z"
-                    fill="rgba(153, 140, 255, 0.15)"
-                    stroke="rgba(153, 140, 255, 0.4)"
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x="294"
-                    y="404"
-                    fill="white"
-                    fontSize="20"
-                    textAnchor="middle"
-                    fontFamily="Red Hat Text"
-                    letterSpacing="0.8"
-                  >
-                    VERGEX
-                  </text>
-                </g>
+            {/* VergeX Layer - Middle */}
+            <div className="absolute left-0 top-[140px] w-[588.897px] h-[340px]">
+              <img
+                src="/vergex/our-products/vergex-layer.svg"
+                alt=""
+                className="block max-w-none w-full h-full"
+              />
+            </div>
 
-                {/* Exchange Layer */}
-                <g>
-                  <path
-                    d="M100 450 L489 450 L544 534 L489 618 L100 618 L45 534 Z"
-                    fill="rgba(153, 140, 255, 0.1)"
-                    stroke="rgba(153, 140, 255, 0.3)"
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x="294"
-                    y="544"
-                    fill="white"
-                    fontSize="20"
-                    textAnchor="middle"
-                    fontFamily="Red Hat Text"
-                    letterSpacing="0.8"
-                  >
-                    EXCHANGE
-                  </text>
-                </g>
+            {/* User Layer - Top */}
+            <div className="absolute left-0 top-0 w-[588.897px] h-[340px]">
+              <img
+                src="/vergex/our-products/user-layer.svg"
+                alt=""
+                className="block max-w-none w-full h-full"
+              />
+            </div>
 
-                {/* AI Models Layer - rotated text */}
-                <text
-                  x="102.99"
-                  y="539.25"
-                  fill="white"
-                  fontSize="20"
-                  fontFamily="Red Hat Text"
-                  letterSpacing="0.8"
-                  transform="rotate(30 102.99 539.25)"
-                >
-                  AI MODELS
-                </text>
-              </svg>
+            {/* USER Text - Top layer */}
+            <div
+              className="absolute flex items-center justify-center h-[57.5px] w-[47.631px] left-[421px]"
+              style={{ top: '253.75px', transform: 'translateY(-50%)' }}
+            >
+              <div
+                className="flex-none"
+                style={{ transform: 'rotate(330deg) skewX(333.435deg)' }}
+              >
+                <p className="font-vergex-body font-normal text-[20px] leading-[30px] text-white tracking-[0.8px] whitespace-nowrap">
+                  USER
+                </p>
+              </div>
+            </div>
+
+            {/* VergeX Text - Middle layer */}
+            <div
+              className="absolute flex items-center justify-center h-[72px] w-[72.746px] left-[408px]"
+              style={{ top: '394px', transform: 'translateY(-50%)' }}
+            >
+              <div
+                className="flex-none"
+                style={{ transform: 'rotate(330deg) skewX(333.435deg)' }}
+              >
+                <p className="font-vergex-body font-normal text-[20px] leading-[30px] text-white tracking-[0.8px] uppercase whitespace-nowrap">
+                  VergeX
+                </p>
+              </div>
+            </div>
+
+            {/* Exchange Text - Bottom layer */}
+            <div
+              className="absolute flex items-center justify-center h-[88.5px] w-[101.325px] left-[394px]"
+              style={{ top: '534.25px', transform: 'translateY(-50%)' }}
+            >
+              <div
+                className="flex-none"
+                style={{ transform: 'rotate(330deg) skewX(333.435deg)' }}
+              >
+                <p className="font-vergex-body font-normal text-[20px] leading-[30px] text-white tracking-[0.8px] uppercase whitespace-nowrap">
+                  Exchange
+                </p>
+              </div>
+            </div>
+
+            {/* AI Models Text - Bottom left */}
+            <div
+              className="absolute flex items-center justify-center h-[87.5px] w-[99.593px] left-[102.99px]"
+              style={{ top: '539.25px', transform: 'translateY(-50%)' }}
+            >
+              <div
+                className="flex-none"
+                style={{ transform: 'rotate(30deg) skewX(26.565deg)' }}
+              >
+                <p className="font-vergex-body font-normal text-[20px] leading-[30px] text-white tracking-[0.8px] uppercase whitespace-nowrap">
+                  Ai Models
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Product Descriptions */}
-          <div className="w-[580px] flex flex-col gap-[80px]">
+          <div className="w-[580px] flex flex-col gap-[80px] items-end shrink-0">
             {/* User Layer */}
-            <div className="flex flex-col gap-[12px]">
-              <div className="flex items-center gap-[12px]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <circle
-                    cx="12"
-                    cy="8"
-                    r="4"
-                    stroke="white"
-                    strokeWidth="1.5"
+            <div className="flex flex-col gap-[12px] items-start w-full">
+              <div className="flex gap-[12px] items-center">
+                <div className="w-[24px] h-[24px] shrink-0">
+                  <img
+                    src="/vergex/our-products/user-icon.svg"
+                    alt=""
+                    className="block max-w-none w-full h-full"
                   />
-                  <path
-                    d="M6 21C6 17.686 8.686 15 12 15C15.314 15 18 17.686 18 21"
-                    stroke="white"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-vergex-text-primary">
+                </div>
+                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-white whitespace-nowrap">
                   {t('vergex.userLayer', language)}
                 </h3>
               </div>
-              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-vergex-text-primary/50">
+              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-[rgba(255,255,255,0.5)] whitespace-pre-wrap">
                 {t('vergex.userLayerDesc', language)}
               </p>
             </div>
 
             {/* VergeX Agentic */}
-            <div className="flex flex-col gap-[12px]">
-              <div className="flex items-center gap-[12px]">
-                <div className="w-[24px] h-[24px] bg-gradient-to-br from-[#998cff] to-[#7d6ee5] rounded flex items-center justify-center rotate-90">
-                  <div
-                    className="-rotate-90 w-0 h-0"
-                    style={{
-                      borderLeft: '7px solid transparent',
-                      borderRight: '7px solid transparent',
-                      borderBottom: '12px solid white',
-                    }}
-                  />
+            <div className="flex flex-col gap-[12px] items-start w-full">
+              <div className="flex gap-[12px] items-center">
+                <div className="flex items-center justify-center w-[24px] h-[24px] shrink-0">
+                  <div style={{ transform: 'rotate(90deg)' }}>
+                    <img
+                      src="/vergex/our-products/vergex-icon.svg"
+                      alt=""
+                      className="block max-w-none w-[24px] h-[24px]"
+                    />
+                  </div>
                 </div>
-                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-vergex-text-primary">
+                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-white whitespace-nowrap">
                   {t('vergex.vergexAgentic', language)}
                 </h3>
               </div>
-              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-vergex-text-primary/50">
+              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-[rgba(255,255,255,0.5)] whitespace-pre-wrap">
                 {t('vergex.vergexAgenticDesc', language)}
               </p>
             </div>
 
             {/* Trading Venues */}
-            <div className="flex flex-col gap-[12px]">
-              <div className="flex items-center gap-[12px]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M3 21H21M5 21V7L12 3L19 7V21M9 9H10M14 9H15M9 13H10M14 13H15M9 17H10M14 17H15"
-                    stroke="white"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-vergex-text-primary">
+            <div className="flex flex-col gap-[12px] items-start w-full">
+              <div className="flex gap-[12px] items-center">
+                <div className="overflow-clip relative w-[24px] h-[24px] shrink-0">
+                  <div
+                    className="absolute"
+                    style={{
+                      bottom: '4.17%',
+                      left: 0,
+                      right: 0,
+                      top: '-4.17%',
+                    }}
+                  >
+                    <img
+                      src="/vergex/our-products/bank-icon.svg"
+                      alt=""
+                      className="block max-w-none w-full h-full"
+                    />
+                  </div>
+                </div>
+                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-white whitespace-nowrap">
                   {t('vergex.tradingVenues', language)}
                 </h3>
               </div>
-              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-vergex-text-primary/50">
+              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-[rgba(255,255,255,0.5)] whitespace-pre-wrap">
                 {t('vergex.tradingVenuesDesc', language)}
               </p>
             </div>
 
             {/* AI Models */}
-            <div className="flex flex-col gap-[12px]">
-              <div className="flex items-center gap-[12px]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="3"
-                    stroke="white"
-                    strokeWidth="1.5"
+            <div className="flex flex-col gap-[12px] items-start w-full">
+              <div className="flex gap-[12px] items-center">
+                <div className="w-[24px] h-[24px] shrink-0">
+                  <img
+                    src="/vergex/our-products/ai-icon.svg"
+                    alt=""
+                    className="block max-w-none w-full h-full"
                   />
-                  <path
-                    d="M12 3V5M12 19V21M21 12H19M5 12H3M18.364 5.636L16.95 7.05M7.05 16.95L5.636 18.364M18.364 18.364L16.95 16.95M7.05 7.05L5.636 5.636"
-                    stroke="white"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-vergex-text-primary">
+                </div>
+                <h3 className="font-vergex-body font-semibold text-[24px] leading-[36px] tracking-[2.4px] uppercase text-white whitespace-nowrap">
                   {t('vergex.aiModels', language)}
                 </h3>
               </div>
-              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-vergex-text-primary/50">
+              <p className="font-vergex-body font-light text-[20px] leading-[30px] text-[rgba(255,255,255,0.5)] whitespace-pre-wrap">
                 {t('vergex.aiModelsDesc', language)}
               </p>
             </div>

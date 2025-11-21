@@ -149,92 +149,78 @@ export const SocialMediaSection: React.FC = () => {
           <div className="w-[416px] border-[1.5px] border-vergex-border-light rounded-[12px] px-[48px] py-[56px] flex flex-col gap-[80px]">
             {/* Twitter */}
             <a
-              href="#"
-              className="flex items-center gap-[24px] group hover:opacity-80 transition-opacity"
+              href="https://x.com/nofx_official"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-[24px] group hover:opacity-80 transition-opacity no-underline"
             >
-              <div className="w-[56px] h-[56px] bg-blue-500 rounded-full flex items-center justify-center">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                  <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" />
-                </svg>
+              <div className="w-[56px] h-[56px] shrink-0">
+                <img
+                  src="/vergex/social-icons/twitter-icon.svg"
+                  alt="Twitter"
+                  className="block max-w-none w-full h-full"
+                />
               </div>
-              <span className="flex-1 font-vergex-body font-medium text-[28px] leading-[42px] text-vergex-text-primary">
+              <span className="flex-1 font-vergex-body font-medium text-[28px] leading-[42px] text-white whitespace-pre-wrap">
                 Twitter
               </span>
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"
-              >
-                <path
-                  d="M7 17L17 7M17 7H7M17 7V17"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
+              <div className="w-[24px] h-[24px] shrink-0">
+                <img
+                  src="/vergex/social-icons/arrow-icon.svg"
+                  alt=""
+                  className="block max-w-none w-full h-full"
                 />
-              </svg>
+              </div>
             </a>
 
             {/* Telegram */}
             <a
-              href="#"
-              className="flex items-center gap-[24px] group hover:opacity-80 transition-opacity"
+              href="https://t.me/nofx_dev_community"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-[24px] group hover:opacity-80 transition-opacity no-underline"
             >
-              <div className="w-[56px] h-[56px] bg-cyan-500 rounded-full flex items-center justify-center">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                  <path d="M21 3L3 10.5L10 13.5M21 3L13.5 21L10 13.5M21 3L10 13.5" />
-                </svg>
+              <div className="w-[56px] h-[56px] shrink-0">
+                <img
+                  src="/vergex/social-icons/telegram-icon.svg"
+                  alt="Telegram"
+                  className="block max-w-none w-full h-full"
+                />
               </div>
-              <span className="flex-1 font-vergex-body font-medium text-[28px] leading-[42px] text-vergex-text-primary">
+              <span className="flex-1 font-vergex-body font-medium text-[28px] leading-[42px] text-white whitespace-pre-wrap">
                 Telegram
               </span>
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"
-              >
-                <path
-                  d="M7 17L17 7M17 7H7M17 7V17"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
+              <div className="w-[24px] h-[24px] shrink-0">
+                <img
+                  src="/vergex/social-icons/arrow-icon.svg"
+                  alt=""
+                  className="block max-w-none w-full h-full"
                 />
-              </svg>
+              </div>
             </a>
 
             {/* Discord */}
             <a
               href="#"
-              className="flex items-center gap-[24px] group hover:opacity-80 transition-opacity"
+              className="flex items-center gap-[24px] group hover:opacity-80 transition-opacity no-underline"
             >
-              <div className="w-[56px] h-[56px] bg-indigo-600 rounded-full flex items-center justify-center">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                  <path d="M9 12h.01M15 12h.01M8 21H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2h-3.5L12 21l-4-0z" />
-                </svg>
+              <div className="w-[56px] h-[56px] shrink-0">
+                <img
+                  src="/vergex/social-icons/discord-icon.svg"
+                  alt="Discord"
+                  className="block max-w-none w-full h-full"
+                />
               </div>
-              <span className="flex-1 font-vergex-body font-medium text-[28px] leading-[42px] text-vergex-text-primary">
+              <span className="flex-1 font-vergex-body font-medium text-[28px] leading-[42px] text-white whitespace-pre-wrap">
                 Discord
               </span>
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"
-              >
-                <path
-                  d="M7 17L17 7M17 7H7M17 7V17"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
+              <div className="w-[24px] h-[24px] shrink-0">
+                <img
+                  src="/vergex/social-icons/arrow-icon.svg"
+                  alt=""
+                  className="block max-w-none w-full h-full"
                 />
-              </svg>
+              </div>
             </a>
           </div>
         </div>

@@ -1,10 +1,12 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { VergeXHeader } from '../../components/vergex/VergeXHeader'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { t } from '../../i18n/translations'
 import SplitText from '../../../@/components/SplitText'
 
 export const HeroSection: React.FC = () => {
+  const navigate = useNavigate()
   const { language } = useLanguage()
 
   return (
@@ -169,7 +171,10 @@ export const HeroSection: React.FC = () => {
         </div>
 
         {/* Open App Button */}
-        <button className="absolute left-[1221px] top-[722px] bg-vergex-primary rounded-[32px] px-[32px] py-[12px] flex items-center gap-[8px] hover:bg-vergex-primary-light transition-colors">
+        <button
+          onClick={() => navigate('/traders')}
+          className="absolute left-[1221px] top-[722px] bg-vergex-primary rounded-[32px] px-[32px] py-[12px] flex items-center gap-[8px] hover:bg-vergex-primary-light transition-colors cursor-pointer"
+        >
           <span className="font-vergex-body font-medium text-[18px] leading-[28px] text-black">
             {t('vergex.openApp', language)}
           </span>

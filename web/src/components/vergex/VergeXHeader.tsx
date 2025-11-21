@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { t } from '../../i18n/translations'
 
@@ -171,6 +172,7 @@ interface NavItemProps {
 }
 
 const NavItem: React.FC<NavItemProps> = ({ label, href, active, items }) => {
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = React.useState(false)
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
@@ -196,12 +198,20 @@ const NavItem: React.FC<NavItemProps> = ({ label, href, active, items }) => {
     }
   }, [])
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    navigate(href)
+  }
+
   if (!items) {
     return (
       <a
         href={href}
-        className={`font-vergex-body font-normal text-[16px] leading-[24px] transition-colors ${
-          active ? 'text-vergex-text-primary' : 'text-vergex-text-primary/60 hover:text-vergex-text-primary'
+        onClick={handleClick}
+        className={`font-vergex-body font-normal text-[16px] leading-[24px] transition-colors cursor-pointer no-underline ${
+          active
+            ? 'text-vergex-text-primary'
+            : 'text-vergex-text-primary/60 hover:text-vergex-text-primary'
         }`}
       >
         {label}
@@ -211,8 +221,14 @@ const NavItem: React.FC<NavItemProps> = ({ label, href, active, items }) => {
 
   // Calculate dropdown width based on menu type
   const getDropdownWidth = () => {
-    if (label === 'Products') return 'w-[240px]'
-    if (label === 'Resources' || label === 'Company') return 'w-[200px]'
+    if (label === 'Products' || label === '产品') return 'w-[240px]'
+    if (
+      label === 'Resources' ||
+      label === '资源' ||
+      label === 'Company' ||
+      label === '公司'
+    )
+      return 'w-[200px]'
     return 'w-[240px]'
   }
 
@@ -224,7 +240,9 @@ const NavItem: React.FC<NavItemProps> = ({ label, href, active, items }) => {
     >
       <button
         className={`font-vergex-body font-normal text-[16px] leading-[24px] transition-colors cursor-pointer bg-transparent border-none outline-none ${
-          isOpen ? 'text-vergex-text-primary' : 'text-vergex-text-primary/60 hover:text-vergex-text-primary'
+          isOpen
+            ? 'text-vergex-text-primary'
+            : 'text-vergex-text-primary/60 hover:text-vergex-text-primary'
         }`}
       >
         {label}
@@ -244,20 +262,34 @@ const NavItem: React.FC<NavItemProps> = ({ label, href, active, items }) => {
 
           <div className="w-full h-[1px] bg-vergex-border-light" />
 
-          {items.map((sub) => (
-            <a
-              key={sub.label}
-              href={sub.href}
-              className="flex items-center justify-between p-[8px] rounded-[6px] hover:bg-vergex-bg-secondary transition-colors group cursor-pointer no-underline"
-            >
-              <span className="font-vergex-body font-medium text-[16px] leading-[24px] text-vergex-text-primary">
-                {sub.label}
-              </span>
-              <div className="text-vergex-text-primary/40 group-hover:text-vergex-text-primary transition-colors shrink-0">
-                <ExternalLinkIcon />
-              </div>
-            </a>
-          ))}
+          {items.map((sub) => {
+            const isExternal = sub.href.startsWith('http')
+            const handleSubClick = (e: React.MouseEvent) => {
+              if (!isExternal) {
+                e.preventDefault()
+                navigate(sub.href)
+                setIsOpen(false)
+              }
+            }
+
+            return (
+              <a
+                key={sub.label}
+                href={sub.href}
+                onClick={handleSubClick}
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noopener noreferrer' : undefined}
+                className="flex items-center justify-between p-[8px] rounded-[6px] hover:bg-vergex-bg-secondary transition-colors group cursor-pointer no-underline"
+              >
+                <span className="font-vergex-body font-medium text-[16px] leading-[24px] text-vergex-text-primary">
+                  {sub.label}
+                </span>
+                <div className="text-vergex-text-primary/40 group-hover:text-vergex-text-primary transition-colors shrink-0">
+                  <ExternalLinkIcon />
+                </div>
+              </a>
+            )
+          })}
         </div>
       )}
     </div>
@@ -289,7 +321,12 @@ export const VergeXHeader: React.FC = () => {
   }
 
   const navItems: (NavItemProps & { labelKey?: string })[] = [
-    { labelKey: 'vergex.home', label: t('vergex.home', language), href: '/', active: true },
+    {
+      labelKey: 'vergex.home',
+      label: t('vergex.home', language),
+      href: '/',
+      active: true,
+    },
     {
       labelKey: 'vergex.products',
       label: t('vergex.products', language),
