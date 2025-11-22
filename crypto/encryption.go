@@ -217,6 +217,37 @@ func (em *EncryptionManager) loadOrGenerateMasterKey() error {
 		return nil
 	}
 
+	// 安全檢查：防止意外生成新密鑰導致數據丟失
+	// 如果 .secrets 目錄已存在，說明這不是全新安裝，不應該自動生成新密鑰
+	secretsDir := ".secrets"
+	if _, err := os.Stat(secretsDir); err == nil {
+		// .secrets 目錄存在但 master.key 不存在 = 密鑰丟失
+		log.Println("❌ 嚴重錯誤：主密鑰文件丟失！")
+		log.Println("❌ .secrets 目錄存在，但 master.key 文件不存在")
+		log.Println("❌ 這可能導致數據庫中的加密數據無法解密")
+		log.Println("")
+		log.Println("🔧 解決方案：")
+		log.Println("   1. 如果有備份，請恢復 .secrets/master.key 文件")
+		log.Println("   2. 如果確定是全新安裝，請設置環境變數 NOFX_ALLOW_NEW_MASTER_KEY=true")
+		log.Println("   3. 如果密鑰已丟失且無備份，需要清空數據庫重新開始")
+		log.Println("")
+		return errors.New("主密鑰文件丟失，拒絕啟動以保護數據安全。詳見上方日誌")
+	}
+
+	// 檢查是否明確允許生成新密鑰
+	if os.Getenv("NOFX_ALLOW_NEW_MASTER_KEY") != "true" {
+		log.Println("⚠️  首次安裝提示：")
+		log.Println("   未找到主密鑰，如果這是全新安裝，請設置環境變數：")
+		log.Println("   NOFX_ALLOW_NEW_MASTER_KEY=true")
+		log.Println("")
+		return errors.New("未找到主密鑰且未設置 NOFX_ALLOW_NEW_MASTER_KEY=true")
+	}
+
+	// 創建 .secrets 目錄
+	if err := os.MkdirAll(secretsDir, 0700); err != nil {
+		return fmt.Errorf("創建 .secrets 目錄失敗: %w", err)
+	}
+
 	// 生成新主密鑰
 	log.Println("🔑 生成新的數據庫主密鑰 (AES-256)...")
 	masterKey := make([]byte, 32)
@@ -236,6 +267,7 @@ func (em *EncryptionManager) loadOrGenerateMasterKey() error {
 	log.Printf("📁 主密鑰文件位置: %s (權限: 0600)", masterKeyFile)
 	log.Println("🔐 生產環境請設置環境變數: NOFX_MASTER_KEY=<從文件讀取>")
 	log.Println("⚠️  請妥善保管 .secrets 目錄，切勿將密鑰提交到版本控制系統")
+	log.Println("⚠️  重要：請立即備份 .secrets/master.key 文件！")
 	return nil
 }
 
