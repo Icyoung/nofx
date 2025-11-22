@@ -33,6 +33,7 @@ import {
   queryAccountStatus
 } from '../lib/hyperliquidBuilderFee'
 import { useLanguage } from '../contexts/LanguageContext'
+import { HyperliquidDepositCard } from '../components/HyperliquidDepositCard'
 
 const BUILDER_ADDRESS = '0x891dc6f05ad47a3c1a05da55e7a7517971faaf0d' // NOFX Builder Address
 
@@ -582,6 +583,22 @@ export function AgentWalletBackendPage() {
                     >
                       {language === 'zh' ? '前往 Hyperliquid 存款' : 'Go to Hyperliquid Deposit'} →
                     </a>
+                  </div>
+
+                  {/* Hyperliquid 快速存款 */}
+                  <div className="mb-4">
+                    <HyperliquidDepositCard
+                      hyperliquidChain={agentWallet.hyperliquid_chain as 'Mainnet' | 'Testnet'}
+                      onDepositSuccess={() => {
+                        // 存款成功后重新加载余额
+                        if (agentWallet) {
+                          loadHyperliquidBalance(
+                            agentWallet.main_wallet,
+                            agentWallet.hyperliquid_chain as 'Mainnet' | 'Testnet'
+                          )
+                        }
+                      }}
+                    />
                   </div>
 
                   {/* 授权说明 */}
