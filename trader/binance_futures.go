@@ -112,7 +112,7 @@ func (t *FuturesTrader) setDualSidePosition() error {
 func syncBinanceServerTime(client *futures.Client) {
 	serverTime, err := client.NewServerTimeService().Do(context.Background())
 	if err != nil {
-		logger.Error("⚠️ 同步币安服务器时间失败: %v", err)
+		logger.Errorf("⚠️ 同步币安服务器时间失败: %v", err)
 		return
 	}
 
