@@ -848,6 +848,17 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		return
 	}
 
+	// 🔒 后端安全检查：禁止编辑运行中的交易员，避免产生孤儿进程
+	if trader, err := s.traderManager.GetTrader(traderID); err == nil {
+		status := trader.GetStatus()
+		if isRunning, ok := status["is_running"].(bool); ok && isRunning {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "无法编辑运行中的交易员，请先停止后再编辑",
+			})
+			return
+		}
+	}
+
 	// 设置默认值
 	isCrossMargin := existingTrader.IsCrossMargin // 保持原值
 	if req.IsCrossMargin != nil {
