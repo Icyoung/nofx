@@ -404,6 +404,33 @@ func (s *Server) getTraderFromQuery(c *gin.Context) (*manager.TraderManager, str
 	return s.traderManager, traderID, nil
 }
 
+// getOrLoadTrader 获取trader，如果不在内存中则尝试从数据库加载
+// 这解决了交易员已配置但未运行时API调用失败的问题
+func (s *Server) getOrLoadTrader(userID, traderID string) (*trader.AutoTrader, error) {
+	// 1. 先尝试从内存获取
+	t, err := s.traderManager.GetTrader(traderID)
+	if err == nil {
+		return t, nil
+	}
+
+	// 2. 内存中不存在，尝试从数据库加载
+	logger.Infof("🔍 交易员 %s 不在内存中，尝试从数据库加载", traderID)
+	if loadErr := s.traderManager.LoadTraderByID(s.database, userID, traderID); loadErr != nil {
+		logger.Infof("❌ 加载交易员 %s 到内存失败: %v", traderID, loadErr)
+		return nil, fmt.Errorf("交易员 %s 不存在或加载失败: %v", traderID, loadErr)
+	}
+
+	// 3. 重新获取
+	t, err = s.traderManager.GetTrader(traderID)
+	if err != nil {
+		logger.Infof("❌ 重新获取交易员 %s 失败: %v", traderID, err)
+		return nil, fmt.Errorf("交易员加载后获取失败: %v", err)
+	}
+
+	logger.Infof("✓ 成功从数据库加载交易员 %s", traderID)
+	return t, nil
+}
+
 // validateKlineIntervals 校验K线时间间隔格式
 func validateKlineIntervals(intervals string) error {
 	if strings.TrimSpace(intervals) == "" {
@@ -1459,13 +1486,14 @@ func (s *Server) handleGetTraderConfig(c *gin.Context) {
 
 // handleStatus 系统状态
 func (s *Server) handleStatus(c *gin.Context) {
+	userID := c.GetString("user_id")
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	trader, err := s.traderManager.GetTrader(traderID)
+	trader, err := s.getOrLoadTrader(userID, traderID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -1477,13 +1505,14 @@ func (s *Server) handleStatus(c *gin.Context) {
 
 // handleAccount 账户信息
 func (s *Server) handleAccount(c *gin.Context) {
+	userID := c.GetString("user_id")
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	trader, err := s.traderManager.GetTrader(traderID)
+	trader, err := s.getOrLoadTrader(userID, traderID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -1510,13 +1539,14 @@ func (s *Server) handleAccount(c *gin.Context) {
 
 // handlePositions 持仓列表
 func (s *Server) handlePositions(c *gin.Context) {
+	userID := c.GetString("user_id")
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	trader, err := s.traderManager.GetTrader(traderID)
+	trader, err := s.getOrLoadTrader(userID, traderID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -1535,13 +1565,14 @@ func (s *Server) handlePositions(c *gin.Context) {
 
 // handleDecisions 决策日志列表
 func (s *Server) handleDecisions(c *gin.Context) {
+	userID := c.GetString("user_id")
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	trader, err := s.traderManager.GetTrader(traderID)
+	trader, err := s.getOrLoadTrader(userID, traderID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -1561,13 +1592,14 @@ func (s *Server) handleDecisions(c *gin.Context) {
 
 // handleLatestDecisions 最新决策日志（最近5条，最新的在前）
 func (s *Server) handleLatestDecisions(c *gin.Context) {
+	userID := c.GetString("user_id")
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	trader, err := s.traderManager.GetTrader(traderID)
+	trader, err := s.getOrLoadTrader(userID, traderID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
