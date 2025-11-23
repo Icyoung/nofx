@@ -295,6 +295,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         is_cross_margin: data.is_cross_margin,
         use_coin_pool: data.use_coin_pool,
         use_oi_top: data.use_oi_top,
+        kline_intervals: data.kline_intervals || '', // 修復 Issue #30: 保存時缺少 K線周期
       }
 
       await toast.promise(api.updateTrader(editingTrader.trader_id, request), {
