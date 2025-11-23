@@ -68,8 +68,8 @@ export function ConfirmDialogProvider({
         isOpen: true,
         title: options.title,
         message: options.message,
-        okText: options.okText || '确认',
-        cancelText: options.cancelText || '取消',
+        okText: options.okText || 'Confirm',
+        cancelText: options.cancelText || 'Cancel',
         resolve,
       })
     })

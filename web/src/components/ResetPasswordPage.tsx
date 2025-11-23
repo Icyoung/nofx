@@ -134,7 +134,7 @@ export function ResetPasswordPage() {
               {t('resetPasswordTitle', language)}
             </h1>
             <p className="text-sm mt-2" style={{ color: '#848E9C' }}>
-              使用邮箱和 Google Authenticator 重置密码
+              {t('resetPasswordSubtitle', language)}
             </p>
           </div>
 
@@ -153,7 +153,7 @@ export function ResetPasswordPage() {
                   {t('resetPasswordSuccess', language)}
                 </p>
                 <p className="text-sm" style={{ color: '#848E9C' }}>
-                  3秒后将自动跳转到登录页面...
+                  {t('redirectToLoginIn3s', language)}
                 </p>
               </div>
             ) : (
@@ -286,7 +286,7 @@ export function ResetPasswordPage() {
                   <div className="text-center mb-3">
                     <div className="text-3xl">📱</div>
                     <p className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                      打开 Google Authenticator 获取6位验证码
+                      {t('openGoogleAuthenticator', language)}
                     </p>
                   </div>
                   <input
