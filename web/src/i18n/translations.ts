@@ -437,6 +437,43 @@ export const translations = {
     copyIPFailed: 'Failed to copy IP address. Please copy manually',
     loadingServerIP: 'Loading server IP...',
 
+    // Binance Configuration Guide
+    binanceUserMustRead: 'Binance Users Must Read:',
+    binanceApiTypeWarning:
+      'Use "Spot & Futures Trading" API, NOT "Unified Account API"',
+    binanceApiTypeReason:
+      'Reason: Unified Account API has different permission structure, causing order submission failures',
+    binanceConfigSteps: 'Correct Configuration Steps:',
+    binanceStep1: 'Login to Binance → Profile → API Management',
+    binanceStep2: 'Create API → Select "System Generated API Key"',
+    binanceStep3: 'Check "Spot & Futures Trading" (DO NOT select Unified Account)',
+    binanceStep4: 'IP restriction: "Unrestricted" or add server IP',
+    binanceMultiAssetNote: 'Multi-Asset Mode Users Note:',
+    binanceMultiAssetWarning:
+      'If you have enabled Multi-Asset mode, Cross Margin mode will be forced. Consider disabling Multi-Asset mode to support Isolated Margin trading.',
+    viewBinanceGuide: 'View Binance Official Guide',
+
+    // Hyperliquid / Agent Wallet
+    walletConnectionRequired: 'Wallet Connection Required',
+    walletConnectionRequiredDesc:
+      'Please visit the Agent Wallet page and connect your Web3 wallet (MetaMask, WalletConnect, etc.), then create an Agent Wallet.',
+    goToAgentWallet: 'Go to Agent Wallet',
+    agentWalletRequired: 'Agent Wallet Required',
+    agentWalletRequiredDesc:
+      'Hyperliquid requires a backend-generated Agent Wallet. Please create and authorize one in the Agent Wallet page.',
+    goToCreateAgentWallet: 'Go to Create Agent Wallet',
+    loadingAgentWallet: 'Loading Agent Wallet...',
+    agentAddress: 'Agent Address:',
+    mainWallet: 'Main Wallet:',
+    agentWalletStatus: 'Status:',
+    authorizationRequired: 'Authorization Required',
+    authorizationRequiredDesc:
+      'Agent wallet needs to be authorized before use. Click the button below to go to the authorization page (2 signatures required).',
+    goToAuthorizeAgentWallet: 'Go to Authorize Agent Wallet',
+    backendAgentWalletDesc:
+      'Using backend-hosted Agent Wallet, no private key input needed',
+    pleaseCreateAgentWallet: 'Please create Agent Wallet first',
+
     // Error Messages
     createTraderFailed: 'Failed to create trader',
     getTraderConfigFailed: 'Failed to get trader configuration',
@@ -1403,6 +1440,40 @@ export const translations = {
     ipCopied: 'IP已复制',
     copyIPFailed: 'IP地址复制失败，请手动复制',
     loadingServerIP: '正在加载服务器IP...',
+
+    // Binance Configuration Guide
+    binanceUserMustRead: '币安用户必读：',
+    binanceApiTypeWarning: '使用「现货与合约交易」API，不要用「统一账户 API」',
+    binanceApiTypeReason: '原因：统一账户 API 权限结构不同，会导致订单提交失败',
+    binanceConfigSteps: '正确配置步骤：',
+    binanceStep1: '登录币安 → 个人中心 → API 管理',
+    binanceStep2: '创建 API → 选择「系统生成的 API 密钥」',
+    binanceStep3: '勾选「现货与合约交易」（不选统一账户）',
+    binanceStep4: 'IP 限制选「无限制」或添加服务器 IP',
+    binanceMultiAssetNote: '多资产模式用户注意：',
+    binanceMultiAssetWarning:
+      '如果您开启了多资产模式，将强制使用全仓模式。建议关闭多资产模式以支持逐仓交易。',
+    viewBinanceGuide: '查看币安官方教程',
+
+    // Hyperliquid / Agent Wallet
+    walletConnectionRequired: '需要连接钱包',
+    walletConnectionRequiredDesc:
+      '请先访问 Agent Wallet 页面并连接您的 Web3 钱包（MetaMask、WalletConnect 等），然后创建 Agent Wallet。',
+    goToAgentWallet: '前往 Agent Wallet 页面',
+    agentWalletRequired: '需要创建 Agent Wallet',
+    agentWalletRequiredDesc:
+      'Hyperliquid 需要使用后端生成的 Agent Wallet。请先前往 Agent Wallet 页面创建并授权。',
+    goToCreateAgentWallet: '前往创建 Agent Wallet',
+    loadingAgentWallet: '正在加载 Agent Wallet...',
+    agentAddress: 'Agent 地址：',
+    mainWallet: 'Main Wallet：',
+    agentWalletStatus: '状态：',
+    authorizationRequired: '需要授权',
+    authorizationRequiredDesc:
+      'Agent 钱包需要完成授权才能使用。点击下方按钮前往授权页面（需要 2 次签名）。',
+    goToAuthorizeAgentWallet: '前往授权 Agent 钱包',
+    backendAgentWalletDesc: '使用后端托管的 Agent Wallet，无需手动输入私钥',
+    pleaseCreateAgentWallet: '请先创建 Agent Wallet',
 
     // Error Messages
     createTraderFailed: '创建交易员失败',

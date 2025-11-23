@@ -223,11 +223,7 @@ export function ExchangeConfigModal({
     } else if (selectedExchange?.id === 'hyperliquid') {
       // 使用后端生成的 Agent Wallet（使用特殊标识 "BACKEND_AGENT"）
       if (!backendAgentWallet) {
-        toast.error(
-          language === 'zh'
-            ? '请先创建 Agent Wallet'
-            : 'Please create Agent Wallet first'
-        )
+        toast.error(t('pleaseCreateAgentWallet', language))
         return
       }
       await onSave(
@@ -417,9 +413,10 @@ export function ExchangeConfigModal({
                                 className="text-sm font-medium"
                                 style={{ color: '#EAECEF' }}
                               >
-                                <strong>币安用户必读：</strong>
-                                使用「现货与合约交易」API，不要用「统一账户
-                                API」
+                                <strong>
+                                  {t('binanceUserMustRead', language)}
+                                </strong>{' '}
+                                {t('binanceApiTypeWarning', language)}
                               </span>
                             </div>
                             <span style={{ color: '#8b949e' }}>
@@ -439,39 +436,23 @@ export function ExchangeConfigModal({
                               onClick={(e) => e.stopPropagation()}
                             >
                               <p className="mb-2" style={{ color: '#8b949e' }}>
-                                <strong>原因：</strong>统一账户 API
-                                权限结构不同，会导致订单提交失败
+                                {t('binanceApiTypeReason', language)}
                               </p>
 
                               <p
                                 className="font-semibold mb-1"
                                 style={{ color: '#EAECEF' }}
                               >
-                                正确配置步骤：
+                                {t('binanceConfigSteps', language)}
                               </p>
                               <ol
                                 className="list-decimal list-inside space-y-1 mb-3"
                                 style={{ paddingLeft: '0.5rem' }}
                               >
-                                <li>
-                                  登录币安 → 个人中心 →{' '}
-                                  <strong>API 管理</strong>
-                                </li>
-                                <li>
-                                  创建 API → 选择「
-                                  <strong>系统生成的 API 密钥</strong>」
-                                </li>
-                                <li>
-                                  勾选「<strong>现货与合约交易</strong>」（
-                                  <span style={{ color: '#f85149' }}>
-                                    不选统一账户
-                                  </span>
-                                  ）
-                                </li>
-                                <li>
-                                  IP 限制选「<strong>无限制</strong>
-                                  」或添加服务器 IP
-                                </li>
+                                <li>{t('binanceStep1', language)}</li>
+                                <li>{t('binanceStep2', language)}</li>
+                                <li>{t('binanceStep3', language)}</li>
+                                <li>{t('binanceStep4', language)}</li>
                               </ol>
 
                               <p
@@ -481,18 +462,25 @@ export function ExchangeConfigModal({
                                   border: '1px solid #9e6a03',
                                 }}
                               >
-                                💡 <strong>多资产模式用户注意：</strong>
-                                如果您开启了多资产模式，将强制使用全仓模式。建议关闭多资产模式以支持逐仓交易。
+                                💡{' '}
+                                <strong>
+                                  {t('binanceMultiAssetNote', language)}
+                                </strong>{' '}
+                                {t('binanceMultiAssetWarning', language)}
                               </p>
 
                               <a
-                                href="https://www.binance.com/zh-CN/support/faq/how-to-create-api-keys-on-binance-360002502072"
+                                href={
+                                  language === 'zh'
+                                    ? 'https://www.binance.com/zh-CN/support/faq/how-to-create-api-keys-on-binance-360002502072'
+                                    : 'https://www.binance.com/en/support/faq/how-to-create-api-keys-on-binance-360002502072'
+                                }
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-block text-sm hover:underline"
                                 style={{ color: '#58a6ff' }}
                               >
-                                📖 查看币安官方教程 ↗
+                                📖 {t('viewBinanceGuide', language)} ↗
                               </a>
                             </div>
                           )}
@@ -764,17 +752,13 @@ export function ExchangeConfigModal({
                               className="text-sm font-semibold mb-2"
                               style={{ color: '#F85149' }}
                             >
-                              {language === 'zh'
-                                ? '⚠️ 需要连接钱包'
-                                : '⚠️ Wallet Connection Required'}
+                              ⚠️ {t('walletConnectionRequired', language)}
                             </div>
                             <div
                               className="text-xs mb-3"
                               style={{ color: '#848E9C' }}
                             >
-                              {language === 'zh'
-                                ? '请先访问 Agent Wallet 页面并连接您的 Web3 钱包（MetaMask、WalletConnect 等），然后创建 Agent Wallet。'
-                                : 'Please visit the Agent Wallet page and connect your Web3 wallet (MetaMask, WalletConnect, etc.), then create an Agent Wallet.'}
+                              {t('walletConnectionRequiredDesc', language)}
                             </div>
                             <a
                               href="/agent-wallet"
@@ -786,9 +770,7 @@ export function ExchangeConfigModal({
                                 color: '#FFF',
                               }}
                             >
-                              {language === 'zh'
-                                ? '前往 Agent Wallet 页面 →'
-                                : 'Go to Agent Wallet →'}
+                              {t('goToAgentWallet', language)} →
                             </a>
                           </div>
                         )}
@@ -799,9 +781,7 @@ export function ExchangeConfigModal({
                             style={{ color: '#848E9C' }}
                           >
                             <RefreshCw className="w-3 h-3 animate-spin" />
-                            {language === 'zh'
-                              ? '正在加载 Agent Wallet...'
-                              : 'Loading Agent Wallet...'}
+                            {t('loadingAgentWallet', language)}
                           </div>
                         )}
                         {!loadingAgentWallet &&
@@ -818,17 +798,13 @@ export function ExchangeConfigModal({
                                 className="text-sm font-semibold mb-2"
                                 style={{ color: '#F0B90B' }}
                               >
-                                {language === 'zh'
-                                  ? '⚠️ 需要创建 Agent Wallet'
-                                  : '⚠️ Agent Wallet Required'}
+                                ⚠️ {t('agentWalletRequired', language)}
                               </div>
                               <div
                                 className="text-xs mb-3"
                                 style={{ color: '#848E9C' }}
                               >
-                                {language === 'zh'
-                                  ? 'Hyperliquid 需要使用后端生成的 Agent Wallet。请先前往 Agent Wallet 页面创建并授权。'
-                                  : 'Hyperliquid requires a backend-generated Agent Wallet. Please create and authorize one in the Agent Wallet page.'}
+                                {t('agentWalletRequiredDesc', language)}
                               </div>
                               <a
                                 href="/agent-wallet"
@@ -840,9 +816,7 @@ export function ExchangeConfigModal({
                                   color: '#000',
                                 }}
                               >
-                                {language === 'zh'
-                                  ? '前往创建 Agent Wallet →'
-                                  : 'Go to Agent Wallet →'}
+                                {t('goToCreateAgentWallet', language)} →
                               </a>
                             </div>
                           )}
@@ -866,9 +840,7 @@ export function ExchangeConfigModal({
                                 className="text-xs"
                                 style={{ color: '#848E9C' }}
                               >
-                                {language === 'zh'
-                                  ? 'Agent 地址：'
-                                  : 'Agent Address:'}
+                                {t('agentAddress', language)}
                               </span>
                               <code
                                 className="block mt-1 px-2 py-1 rounded font-mono text-xs"
@@ -885,9 +857,7 @@ export function ExchangeConfigModal({
                                 className="text-xs"
                                 style={{ color: '#848E9C' }}
                               >
-                                {language === 'zh'
-                                  ? 'Main Wallet：'
-                                  : 'Main Wallet:'}
+                                {t('mainWallet', language)}
                               </span>
                               <code
                                 className="block mt-1 px-2 py-1 rounded font-mono text-xs"
@@ -904,15 +874,19 @@ export function ExchangeConfigModal({
                                 className="text-xs"
                                 style={{ color: '#848E9C' }}
                               >
-                                {language === 'zh' ? '状态：' : 'Status:'}
+                                {t('agentWalletStatus', language)}
                               </span>
                               <span
                                 className="ml-2 px-2 py-0.5 rounded text-xs font-medium"
                                 style={{
-                                  background: backendAgentWallet.status === 'ACTIVE'
-                                    ? 'rgba(14, 203, 129, 0.2)'
-                                    : 'rgba(240, 185, 11, 0.2)',
-                                  color: backendAgentWallet.status === 'ACTIVE' ? '#0ECB81' : '#F0B90B',
+                                  background:
+                                    backendAgentWallet.status === 'ACTIVE'
+                                      ? 'rgba(14, 203, 129, 0.2)'
+                                      : 'rgba(240, 185, 11, 0.2)',
+                                  color:
+                                    backendAgentWallet.status === 'ACTIVE'
+                                      ? '#0ECB81'
+                                      : '#F0B90B',
                                 }}
                               >
                                 {backendAgentWallet.status}
@@ -929,13 +903,19 @@ export function ExchangeConfigModal({
                                 border: '1px solid rgba(240, 185, 11, 0.3)',
                               }}
                             >
-                              <p className="text-xs mb-2" style={{ color: '#F0B90B' }}>
-                                <strong>⚠️ {language === 'zh' ? '需要授权' : 'Authorization Required'}</strong>
+                              <p
+                                className="text-xs mb-2"
+                                style={{ color: '#F0B90B' }}
+                              >
+                                <strong>
+                                  ⚠️ {t('authorizationRequired', language)}
+                                </strong>
                               </p>
-                              <p className="text-xs mb-3" style={{ color: '#848E9C' }}>
-                                {language === 'zh'
-                                  ? 'Agent 钱包需要完成授权才能使用。点击下方按钮前往授权页面（需要 2 次签名）。'
-                                  : 'Agent wallet needs to be authorized before use. Click the button below to go to the authorization page (2 signatures required).'}
+                              <p
+                                className="text-xs mb-3"
+                                style={{ color: '#848E9C' }}
+                              >
+                                {t('authorizationRequiredDesc', language)}
                               </p>
                               <a
                                 href="/agent-wallet-backend"
@@ -948,15 +928,18 @@ export function ExchangeConfigModal({
                                   textDecoration: 'none',
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.transform = 'translateY(-1px)'
-                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(240, 185, 11, 0.3)'
+                                  e.currentTarget.style.transform =
+                                    'translateY(-1px)'
+                                  e.currentTarget.style.boxShadow =
+                                    '0 4px 12px rgba(240, 185, 11, 0.3)'
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.transform = 'translateY(0)'
+                                  e.currentTarget.style.transform =
+                                    'translateY(0)'
                                   e.currentTarget.style.boxShadow = 'none'
                                 }}
                               >
-                                🔐 {language === 'zh' ? '前往授权 Agent 钱包' : 'Go to Authorize Agent Wallet'}
+                                🔐 {t('goToAuthorizeAgentWallet', language)}
                               </a>
                             </div>
                           )}
@@ -986,9 +969,7 @@ export function ExchangeConfigModal({
                             className="text-xs mt-1"
                             style={{ color: '#848E9C' }}
                           >
-                            {language === 'zh'
-                              ? '使用后端托管的 Agent Wallet，无需手动输入私钥'
-                              : 'Using backend-hosted Agent Wallet, no private key input needed'}
+                            {t('backendAgentWalletDesc', language)}
                           </div>
                         </div>
                       </>
