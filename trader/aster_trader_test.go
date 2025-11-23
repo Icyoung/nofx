@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"nofx/logger"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -25,6 +26,9 @@ type AsterTraderTestSuite struct {
 
 // NewAsterTraderTestSuite 创建 Aster 测试套件
 func NewAsterTraderTestSuite(t *testing.T) *AsterTraderTestSuite {
+	// 初始化 logger（测试需要）
+	logger.Init(nil)
+
 	// 创建 mock HTTP 服务器
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 根据不同的 URL 路径返回不同的 mock 响应

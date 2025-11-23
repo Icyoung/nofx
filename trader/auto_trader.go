@@ -235,10 +235,16 @@ func NewAutoTrader(config AutoTraderConfig, database config.DatabaseInterface, u
 		systemPromptTemplate = "adaptive"
 	}
 
-	// 设置K线时间间隔（默认为 3m,4h）
+	// 设置K线时间间隔
+	// 注意：如果配置为空，说明上层 (trader_manager.go) 已经设置了默认值
+	// 这里不应该再覆盖，保持与 trader_manager.go 中的默认值一致
 	klineIntervals := config.KlineIntervals
 	if len(klineIntervals) == 0 {
-		klineIntervals = []string{"3m", "4h"} // 默认值
+		// 与 trader_manager.go 保持一致的默认值
+		klineIntervals = []string{"1m", "15m", "4h"}
+		logger.Warnf("⚠️ [%s] K线时间间隔配置为空，使用默认值: %v", config.Name, klineIntervals)
+	} else {
+		logger.Infof("📊 [%s] K线时间间隔配置: %v", config.Name, klineIntervals)
 	}
 
 	return &AutoTrader{

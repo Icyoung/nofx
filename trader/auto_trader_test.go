@@ -1256,3 +1256,73 @@ func TestCalculatePnLPercentage_RealWorldScenarios(t *testing.T) {
 		}
 	})
 }
+
+// ============================================================
+// Bug #70 修复测试: getCandidateCoins 优先级逻辑
+// ============================================================
+
+// TestGetCandidateCoins_ExternalDataSourcePriority 测试外部数据源的优先级
+// 当 CoinPoolAPIURL 不为空时，应该优先使用外部数据源而不是 defaultCoins
+func (s *AutoTraderTestSuite) TestGetCandidateCoins_ExternalDataSourcePriority() {
+	// 场景1: 启用外部数据源(CoinPoolAPIURL不为空)，应使用外部数据源
+	s.Run("启用外部数据源_应使用AI500+OI_Top", func() {
+		// 设置 CoinPoolAPIURL
+		s.autoTrader.config.CoinPoolAPIURL = "http://example.com/api/coins"
+		s.autoTrader.tradingCoins = []string{} // 无自定义币种
+		s.autoTrader.defaultCoins = []string{"BTC", "ETH"} // 有默认币种
+
+		// Mock pool.GetMergedCoinPool
+		s.patches.ApplyFunc(pool.GetMergedCoinPool, func(ai500Limit int) (*pool.MergedCoinPool, error) {
+			return &pool.MergedCoinPool{
+				AllSymbols: []string{"BTCUSDT", "ETHUSDT", "SOLUSDT"},
+				SymbolSources: map[string][]string{
+					"BTCUSDT": {"ai500", "oi_top"},
+					"ETHUSDT": {"ai500"},
+					"SOLUSDT": {"oi_top"},
+				},
+			}, nil
+		})
+
+		coins, err := s.autoTrader.getCandidateCoins()
+		s.NoError(err)
+		s.Len(coins, 3, "应该返回3个来自外部数据源的币种")
+
+		// 验证来源不是 "default"
+		for _, coin := range coins {
+			s.NotContains(coin.Sources, "default", "来源不应该是 default")
+		}
+	})
+
+	// 场景2: 未启用外部数据源，应使用 defaultCoins
+	s.Run("未启用外部数据源_应使用defaultCoins", func() {
+		// 清空 CoinPoolAPIURL
+		s.autoTrader.config.CoinPoolAPIURL = ""
+		s.autoTrader.tradingCoins = []string{}
+		s.autoTrader.defaultCoins = []string{"BTC", "ETH"}
+
+		coins, err := s.autoTrader.getCandidateCoins()
+		s.NoError(err)
+		s.Len(coins, 2, "应该返回2个默认币种")
+
+		// 验证来源是 "default"
+		for _, coin := range coins {
+			s.Contains(coin.Sources, "default", "来源应该是 default")
+		}
+	})
+
+	// 场景3: 有自定义币种，应使用自定义币种（最高优先级）
+	s.Run("有自定义币种_应使用自定义币种", func() {
+		s.autoTrader.config.CoinPoolAPIURL = "http://example.com/api/coins"
+		s.autoTrader.tradingCoins = []string{"DOGE", "XRP"}
+		s.autoTrader.defaultCoins = []string{"BTC", "ETH"}
+
+		coins, err := s.autoTrader.getCandidateCoins()
+		s.NoError(err)
+		s.Len(coins, 2, "应该返回2个自定义币种")
+
+		// 验证来源是 "custom"
+		for _, coin := range coins {
+			s.Contains(coin.Sources, "custom", "来源应该是 custom")
+		}
+	})
+}

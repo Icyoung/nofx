@@ -214,9 +214,13 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		}
 	}
 
-	// 如果没有指定交易币种，使用默认币种
-	if len(tradingCoins) == 0 {
+	// 如果没有指定交易币种，根据配置决定是否使用默认币种
+	// 注意：如果用户启用了外部数据源(UseCoinPool)，则不应该使用默认币种
+	if len(tradingCoins) == 0 && !traderCfg.UseCoinPool {
 		tradingCoins = defaultCoins
+		logger.Infof("📋 [%s] 未设置交易币种且未启用外部数据源，使用系统默认币种: %v", traderCfg.Name, defaultCoins)
+	} else if len(tradingCoins) == 0 && traderCfg.UseCoinPool {
+		logger.Infof("📋 [%s] 启用了外部数据源(UseCoinPool)，将使用 AI500+OI Top 作为候选币种", traderCfg.Name)
 	}
 
 	// 根据交易员配置决定是否使用信号源
@@ -227,6 +231,7 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 	}
 
 	// 解析K线时间间隔配置
+	logger.Infof("🔍 [DEBUG] 交易员 %s 的原始KlineIntervals: '%s'", traderCfg.Name, traderCfg.KlineIntervals)
 	var klineIntervals []string
 	if traderCfg.KlineIntervals != "" {
 		// 解析逗号分隔的K线间隔列表
@@ -237,9 +242,11 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 				klineIntervals = append(klineIntervals, interval)
 			}
 		}
+		logger.Infof("🔍 [DEBUG] 解析后的klineIntervals: %v (数量: %d)", klineIntervals, len(klineIntervals))
 	}
 	// 如果没有配置K线间隔，从数据库获取默认值
 	if len(klineIntervals) == 0 {
+		logger.Infof("🔍 [DEBUG] K线间隔为空，尝试从数据库获取默认值")
 		if defaultIntervalsStr, _ := database.GetSystemConfig("default_kline_intervals"); defaultIntervalsStr != nil {
 			if str, ok := defaultIntervalsStr.(string); ok && str != "" {
 				// 解析默认的K线间隔配置
@@ -357,9 +364,13 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		}
 	}
 
-	// 如果没有指定交易币种，使用默认币种
-	if len(tradingCoins) == 0 {
+	// 如果没有指定交易币种，根据配置决定是否使用默认币种
+	// 注意：如果用户启用了外部数据源(UseCoinPool)，则不应该使用默认币种
+	if len(tradingCoins) == 0 && !traderCfg.UseCoinPool {
 		tradingCoins = defaultCoins
+		logger.Infof("📋 [%s] 未设置交易币种且未启用外部数据源，使用系统默认币种: %v", traderCfg.Name, defaultCoins)
+	} else if len(tradingCoins) == 0 && traderCfg.UseCoinPool {
+		logger.Infof("📋 [%s] 启用了外部数据源(UseCoinPool)，将使用 AI500+OI Top 作为候选币种", traderCfg.Name)
 	}
 
 	// 根据交易员配置决定是否使用信号源
@@ -1095,9 +1106,14 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		logger.Infof("🔍 [DEBUG] 解析后的tradingCoins: %v (数量: %d)", tradingCoins, len(tradingCoins))
 	}
 
-	// 如果没有指定交易币种，使用默认币种
-	if len(tradingCoins) == 0 {
+	// 如果没有指定交易币种，根据配置决定是否使用默认币种
+	// 注意：如果用户启用了外部数据源(UseCoinPool)，则不应该使用默认币种
+	// 让 tradingCoins 保持为空，这样 getCandidateCoins() 会使用外部数据源 (AI500+OI Top)
+	if len(tradingCoins) == 0 && !traderCfg.UseCoinPool {
 		tradingCoins = defaultCoins
+		logger.Infof("📋 [%s] 未设置交易币种且未启用外部数据源，使用系统默认币种: %v", traderCfg.Name, defaultCoins)
+	} else if len(tradingCoins) == 0 && traderCfg.UseCoinPool {
+		logger.Infof("📋 [%s] 启用了外部数据源(UseCoinPool)，将使用 AI500+OI Top 作为候选币种", traderCfg.Name)
 	}
 
 	// 根据交易员配置决定是否使用信号源
@@ -1108,6 +1124,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 	}
 
 	// 解析K线时间间隔配置
+	logger.Infof("🔍 [DEBUG] 交易员 %s 的原始KlineIntervals: '%s'", traderCfg.Name, traderCfg.KlineIntervals)
 	var klineIntervals []string
 	if traderCfg.KlineIntervals != "" {
 		// 解析逗号分隔的K线间隔列表
@@ -1118,9 +1135,11 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 				klineIntervals = append(klineIntervals, interval)
 			}
 		}
+		logger.Infof("🔍 [DEBUG] 解析后的klineIntervals: %v (数量: %d)", klineIntervals, len(klineIntervals))
 	}
 	// 如果没有配置K线间隔，从数据库获取默认值
 	if len(klineIntervals) == 0 {
+		logger.Infof("🔍 [DEBUG] K线间隔为空，尝试从数据库获取默认值")
 		if defaultIntervalsStr, _ := database.GetSystemConfig("default_kline_intervals"); defaultIntervalsStr != nil {
 			if str, ok := defaultIntervalsStr.(string); ok && str != "" {
 				// 解析默认的K线间隔配置
