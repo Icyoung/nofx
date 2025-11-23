@@ -17,6 +17,11 @@ interface AuthContextType {
   ) => Promise<{
     success: boolean
     message?: string
+    errorCode?:
+      | 'INVALID_CREDENTIALS'
+      | 'NETWORK_ERROR'
+      | 'UNKNOWN_ERROR'
+      | 'SERVER_ERROR'
     userID?: string
     requiresOTP?: boolean
   }>
@@ -133,13 +138,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else {
-        return { success: false, message: data.error }
+        // Map HTTP status codes to error codes
+        const errorCode =
+          response.status === 401 ? 'INVALID_CREDENTIALS' : 'SERVER_ERROR'
+        return { success: false, message: data.error, errorCode }
       }
     } catch (error) {
-      return { success: false, message: '登录失败，请重试' }
+      return { success: false, errorCode: 'NETWORK_ERROR' }
     }
 
-    return { success: false, message: '未知错误' }
+    return { success: false, errorCode: 'UNKNOWN_ERROR' }
   }
 
   const loginAdmin = async (password: string) => {

@@ -75,9 +75,26 @@ export function LoginPage() {
         }
       }
     } else {
-      const msg = result.message || t('loginFailed', language)
+      // Map error codes to translated messages
+      let msg: string
+      switch (result.errorCode) {
+        case 'INVALID_CREDENTIALS':
+          msg = t('invalidCredentials', language)
+          break
+        case 'NETWORK_ERROR':
+          msg = t('networkError', language)
+          break
+        case 'SERVER_ERROR':
+          msg = t('serverError', language)
+          break
+        default:
+          msg = result.message || t('loginFailed', language)
+      }
       setError(msg)
-      toast.error(msg)
+      toast.error(msg, {
+        description: t('loginErrorHelp', language),
+        duration: 5000,
+      })
     }
 
     setLoading(false)
@@ -130,7 +147,9 @@ export function LoginPage() {
             className="text-sm mt-2"
             style={{ color: 'var(--text-secondary)' }}
           >
-            {step === 'login' ? t('enterEmailPassword', language) : t('enterOtpCodePrompt', language)}
+            {step === 'login'
+              ? t('enterEmailPassword', language)
+              : t('enterOtpCodePrompt', language)}
           </p>
         </div>
 
@@ -226,7 +245,11 @@ export function LoginPage() {
                   />
                   <button
                     type="button"
-                    aria-label={showPassword ? t('hidePassword', language) : t('showPassword', language)}
+                    aria-label={
+                      showPassword
+                        ? t('hidePassword', language)
+                        : t('showPassword', language)
+                    }
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute inset-y-0 right-2 w-8 h-10 flex items-center justify-center rounded bg-transparent p-0 m-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none cursor-pointer btn-icon"
