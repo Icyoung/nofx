@@ -124,13 +124,13 @@ export function LoginPage() {
             className="text-2xl font-bold"
             style={{ color: 'var(--brand-light-gray)' }}
           >
-            登录 NOFX
+            {t('loginNofx', language)}
           </h1>
           <p
             className="text-sm mt-2"
             style={{ color: 'var(--text-secondary)' }}
           >
-            {step === 'login' ? '请输入您的邮箱和密码' : '请输入两步验证码'}
+            {step === 'login' ? t('enterEmailPassword', language) : t('enterOtpCodePrompt', language)}
           </p>
         </div>
 
@@ -149,7 +149,7 @@ export function LoginPage() {
                   className="block text-sm font-semibold mb-2"
                   style={{ color: 'var(--brand-light-gray)' }}
                 >
-                  管理员密码
+                  {t('adminPassword', language)}
                 </label>
                 <input
                   type="password"
@@ -161,7 +161,7 @@ export function LoginPage() {
                     border: '1px solid var(--panel-border)',
                     color: 'var(--brand-light-gray)',
                   }}
-                  placeholder="请输入管理员密码"
+                  placeholder={t('adminPasswordPlaceholder', language)}
                   required
                 />
               </div>
@@ -187,7 +187,7 @@ export function LoginPage() {
                   color: 'var(--brand-black)',
                 }}
               >
-                {loading ? t('loading', language) : '登录'}
+                {loading ? t('loading', language) : t('loginButton', language)}
               </button>
             </form>
           ) : step === 'login' ? (
@@ -226,7 +226,7 @@ export function LoginPage() {
                   />
                   <button
                     type="button"
-                    aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                    aria-label={showPassword ? t('hidePassword', language) : t('showPassword', language)}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute inset-y-0 right-2 w-8 h-10 flex items-center justify-center rounded bg-transparent p-0 m-0 border-0 outline-none focus:outline-none focus:ring-0 appearance-none cursor-pointer btn-icon"
@@ -348,13 +348,13 @@ export function LoginPage() {
         {!adminMode && registrationEnabled && (
           <div className="text-center mt-6">
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              还没有账户？{' '}
+              {t('noAccount', language)}{' '}
               <button
                 onClick={() => navigate('/register')}
                 className="font-semibold hover:underline transition-colors"
                 style={{ color: 'var(--brand-yellow)' }}
               >
-                立即注册
+                {t('registerNow', language)}
               </button>
             </p>
           </div>
