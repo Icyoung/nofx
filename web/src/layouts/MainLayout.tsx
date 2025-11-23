@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import HeaderBar from '../components/HeaderBar'
 import { Container } from '../components/Container'
@@ -6,15 +6,52 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { t } from '../i18n/translations'
 
+// Routes that require authentication
+const PROTECTED_ROUTES = ['/traders', '/dashboard', '/agent-wallet', '/agent-wallet-backend']
+
 interface MainLayoutProps {
   children?: ReactNode
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const { language, setLanguage } = useLanguage()
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+
+  // Redirect unauthenticated users to login for protected routes
+  useEffect(() => {
+    if (isLoading) return // Wait for auth state to be determined
+
+    const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
+      location.pathname.startsWith(route)
+    )
+
+    if (isProtectedRoute && !user) {
+      // Save current location for post-login redirect
+      const returnUrl = location.pathname + location.search
+      if (returnUrl !== '/login') {
+        sessionStorage.setItem('returnUrl', returnUrl)
+      }
+      navigate('/login', { replace: true })
+    }
+  }, [user, isLoading, location.pathname, location.search, navigate])
+
+  // Don't render protected content while loading auth state or if redirecting
+  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
+    location.pathname.startsWith(route)
+  )
+  if (isProtectedRoute && (isLoading || !user)) {
+    // Show minimal loading state while auth is being determined
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: '#0B0E11' }}
+      >
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F0B90B]" />
+      </div>
+    )
+  }
 
   // 根据路径自动判断当前页面
   const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'faq' => {

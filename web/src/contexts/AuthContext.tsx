@@ -98,6 +98,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       setToken(null)
       // Note: localStorage cleanup is already done in httpClient
+
+      // Clear Zustand stores (same as logout)
+      useTradersConfigStore.getState().reset()
+      useTradersModalStore.getState().reset()
     }
 
     window.addEventListener('unauthorized', handleUnauthorized)
