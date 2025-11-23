@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { getSystemConfig } from '../lib/config'
 import { reset401Flag } from '../lib/httpClient'
+import { useTradersConfigStore, useTradersModalStore } from '../stores'
 
 interface User {
   id: string
@@ -351,6 +352,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
+
+    // 清除 Zustand store 中的用户配置数据
+    useTradersConfigStore.getState().reset()
+    useTradersModalStore.getState().reset()
+
+    // 跳转到登录页面
+    window.location.href = '/login'
   }
 
   return (
