@@ -2,7 +2,6 @@ package config
 
 import (
 	"nofx/crypto"
-	"os"
 	"testing"
 	"time"
 )
@@ -568,9 +567,8 @@ func setupTestDB(t *testing.T) (*PostgreSQLDatabase, func()) {
 	}
 
 	// 设置加密服务（用于测试加密功能）
-	// 创建临时 RSA 密钥
-	rsaKeyPath := t.TempDir() + "/test_rsa_key"
-	cryptoService, err := crypto.NewCryptoService(rsaKeyPath)
+	// 注意：NewCryptoService 现在从环境变量读取密钥，不再需要路径参数
+	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {
 		// 如果创建失败，继续测试但不使用加密
 		t.Logf("警告：无法创建加密服务，将在无加密模式下测试: %v", err)
@@ -580,7 +578,6 @@ func setupTestDB(t *testing.T) (*PostgreSQLDatabase, func()) {
 
 	cleanup := func() {
 		db.Close()
-		os.RemoveAll(rsaKeyPath)
 	}
 
 	return db, cleanup

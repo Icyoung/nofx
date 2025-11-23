@@ -1,5 +1,5 @@
 #!/bin/bash
-# NOFX 加密系統一鍵部署腳本
+# NOFX 加密系統部署腳本 (環境變數版本)
 # 使用方式: chmod +x deploy_encryption.sh && ./deploy_encryption.sh
 
 set -e  # 遇到錯誤立即退出
@@ -32,217 +32,261 @@ log_error() {
 check_dependencies() {
     log_info "檢查依賴工具..."
 
-    if ! command -v go &> /dev/null; then
-        log_error "Go 未安裝，請先安裝 Go 1.21+"
+    if ! command -v openssl &> /dev/null; then
+        log_error "openssl 未安裝"
         exit 1
     fi
 
-    if ! command -v npm &> /dev/null; then
-        log_error "npm 未安裝，請先安裝 Node.js 18+"
+    if ! command -v base64 &> /dev/null; then
+        log_error "base64 未安裝"
         exit 1
-    fi
-
-    if ! command -v sqlite3 &> /dev/null; then
-        log_warning "sqlite3 未安裝，部分驗證功能不可用"
     fi
 
     log_success "依賴檢查通過"
 }
 
-# 備份數據庫
-backup_database() {
-    log_info "備份現有數據庫..."
+# 生成主密鑰
+generate_master_key() {
+    log_info "生成 AES-256 主密鑰..." >&2
+    local key=$(openssl rand -base64 32)
+    log_success "主密鑰已生成" >&2
+    echo "$key"
+}
 
-    if [ -f "config.db" ]; then
-        BACKUP_FILE="config.db.pre_encryption.$(date +%Y%m%d_%H%M%S).backup"
-        cp config.db "$BACKUP_FILE"
-        log_success "數據庫已備份到: $BACKUP_FILE"
+# 生成 RSA 密鑰對
+generate_rsa_keys() {
+    log_info "生成 RSA-4096 密鑰對..."
+
+    # 創建臨時目錄
+    TEMP_DIR=$(mktemp -d)
+
+    # 生成私鑰
+    openssl genrsa -out "$TEMP_DIR/rsa_key" 4096 2>/dev/null
+
+    # 生成公鑰
+    openssl rsa -in "$TEMP_DIR/rsa_key" -pubout -out "$TEMP_DIR/rsa_key.pub" 2>/dev/null
+
+    # 檢測是否是 macOS (macOS 的 base64 不需要 -w0)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        RSA_PRIVATE_KEY=$(base64 < "$TEMP_DIR/rsa_key")
+        RSA_PUBLIC_KEY=$(base64 < "$TEMP_DIR/rsa_key.pub")
     else
-        log_warning "未找到 config.db，跳過備份（首次安裝）"
+        RSA_PRIVATE_KEY=$(base64 -w0 < "$TEMP_DIR/rsa_key")
+        RSA_PUBLIC_KEY=$(base64 -w0 < "$TEMP_DIR/rsa_key.pub")
+    fi
+
+    # 清理臨時文件
+    rm -rf "$TEMP_DIR"
+
+    log_success "RSA 密鑰對已生成"
+}
+
+# 檢查現有環境變數
+check_existing_env() {
+    log_info "檢查現有環境變數配置..."
+
+    local has_existing=false
+
+    if [ -n "$NOFX_MASTER_KEY" ]; then
+        log_warning "NOFX_MASTER_KEY 已設置"
+        has_existing=true
+    fi
+
+    if [ -n "$NOFX_RSA_PRIVATE_KEY" ]; then
+        log_warning "NOFX_RSA_PRIVATE_KEY 已設置"
+        has_existing=true
+    fi
+
+    if [ -n "$NOFX_RSA_PUBLIC_KEY" ]; then
+        log_warning "NOFX_RSA_PUBLIC_KEY 已設置"
+        has_existing=true
+    fi
+
+    if [ "$has_existing" = true ]; then
+        echo ""
+        log_warning "檢測到已有密鑰配置！"
+        log_warning "重新生成密鑰將導致現有加密數據無法解密！"
+        echo ""
+        read -p "確定要重新生成密鑰嗎？(y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_info "已取消"
+            exit 0
+        fi
     fi
 }
 
-# 創建密鑰目錄
-setup_secrets_dir() {
-    log_info "設置密鑰目錄..."
+# 從舊版本遷移
+migrate_from_old_version() {
+    log_info "檢查舊版本密鑰文件..."
 
-    if [ ! -d ".secrets" ]; then
-        mkdir -p .secrets
-        chmod 700 .secrets
-        log_success "密鑰目錄已創建: .secrets/"
-    else
-        log_warning "密鑰目錄已存在，跳過創建"
+    local migrated=false
+
+    # 檢查舊的主密鑰
+    if [ -f ".secrets/master.key" ]; then
+        log_warning "發現舊版本主密鑰: .secrets/master.key"
+        MASTER_KEY=$(cat .secrets/master.key)
+        log_success "已從舊文件讀取主密鑰"
+        migrated=true
     fi
+
+    # 檢查舊的 RSA 密鑰
+    if [ -f "secrets/rsa_key" ] && [ -f "secrets/rsa_key.pub" ]; then
+        log_warning "發現舊版本 RSA 密鑰: secrets/rsa_key"
+
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            RSA_PRIVATE_KEY=$(base64 < "secrets/rsa_key")
+            RSA_PUBLIC_KEY=$(base64 < "secrets/rsa_key.pub")
+        else
+            RSA_PRIVATE_KEY=$(base64 -w0 < "secrets/rsa_key")
+            RSA_PUBLIC_KEY=$(base64 -w0 < "secrets/rsa_key.pub")
+        fi
+
+        log_success "已從舊文件讀取 RSA 密鑰"
+        migrated=true
+    fi
+
+    # 檢查更舊的 RSA 密鑰路徑
+    if [ -f ".secrets/rsa_private.pem" ] && [ -f ".secrets/rsa_public.pem" ]; then
+        log_warning "發現舊版本 RSA 密鑰: .secrets/rsa_private.pem"
+
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            RSA_PRIVATE_KEY=$(base64 < ".secrets/rsa_private.pem")
+            RSA_PUBLIC_KEY=$(base64 < ".secrets/rsa_public.pem")
+        else
+            RSA_PRIVATE_KEY=$(base64 -w0 < ".secrets/rsa_private.pem")
+            RSA_PUBLIC_KEY=$(base64 -w0 < ".secrets/rsa_public.pem")
+        fi
+
+        log_success "已從舊文件讀取 RSA 密鑰"
+        migrated=true
+    fi
+
+    if [ "$migrated" = true ]; then
+        echo ""
+        log_success "已從舊版本遷移密鑰"
+        log_warning "請在確認新配置正常工作後，刪除舊的密鑰文件"
+        echo ""
+    fi
+
+    echo "$migrated"
+}
+
+# 寫入 .env 文件
+write_env_file() {
+    log_info "寫入 .env 文件..."
+
+    # 備份現有 .env
+    if [ -f ".env" ]; then
+        cp .env ".env.backup.$(date +%Y%m%d_%H%M%S)"
+        log_success "已備份現有 .env 文件"
+    fi
+
+    # 檢查是否已有這些變數
+    if [ -f ".env" ]; then
+        # 移除舊的密鑰配置
+        grep -v "^NOFX_MASTER_KEY=" .env | grep -v "^NOFX_RSA_PRIVATE_KEY=" | grep -v "^NOFX_RSA_PUBLIC_KEY=" > .env.tmp || true
+        mv .env.tmp .env
+    fi
+
+    # 添加新的密鑰配置
+    cat >> .env << EOF
+
+# ===========================================
+# 加密密鑰配置（自動生成於 $(date))
+# ===========================================
+NOFX_MASTER_KEY=$MASTER_KEY
+NOFX_RSA_PRIVATE_KEY=$RSA_PRIVATE_KEY
+NOFX_RSA_PUBLIC_KEY=$RSA_PUBLIC_KEY
+EOF
+
+    log_success ".env 文件已更新"
 }
 
 # 更新 .gitignore
 update_gitignore() {
     log_info "更新 .gitignore..."
 
-    if ! grep -q ".secrets/" .gitignore 2>/dev/null; then
-        echo ".secrets/" >> .gitignore
-        log_success "已添加 .secrets/ 到 .gitignore"
+    if ! grep -q "^\.env$" .gitignore 2>/dev/null; then
+        echo ".env" >> .gitignore
+        log_success "已添加 .env 到 .gitignore"
     fi
 
-    if ! grep -q "config.db.backup" .gitignore 2>/dev/null; then
-        echo "config.db.*.backup" >> .gitignore
-        log_success "已添加備份檔案規則到 .gitignore"
-    fi
-}
-
-# 安裝依賴
-install_dependencies() {
-    log_info "安裝 Go 依賴..."
-    go mod tidy
-    log_success "Go 依賴已更新"
-
-    log_info "安裝前端依賴..."
-    cd web
-    if [ ! -d "node_modules" ]; then
-        npm install
-    fi
-    npm install tweetnacl tweetnacl-util @noble/secp256k1 --save
-    cd ..
-    log_success "前端依賴已安裝"
-}
-
-# 運行測試
-run_tests() {
-    log_info "運行加密系統測試..."
-
-    if go test ./crypto -v > /tmp/nofx_test.log 2>&1; then
-        log_success "加密系統測試通過"
-        cat /tmp/nofx_test.log | grep "✅"
-    else
-        log_error "加密系統測試失敗，詳情:"
-        cat /tmp/nofx_test.log
-        exit 1
+    if ! grep -q "^\.env\.backup" .gitignore 2>/dev/null; then
+        echo ".env.backup*" >> .gitignore
+        log_success "已添加 .env.backup* 到 .gitignore"
     fi
 }
 
-# 遷移數據
-migrate_data() {
-    log_info "遷移現有數據到加密格式..."
+# 驗證配置
+verify_config() {
+    log_info "驗證配置..."
 
-    if [ -f "config.db" ]; then
-        # 檢查是否已經加密過
-        if sqlite3 config.db "SELECT api_key FROM exchanges LIMIT 1;" 2>/dev/null | grep -q "=="; then
-            log_warning "數據庫似乎已經加密過，跳過遷移"
-            read -p "是否強制重新遷移？(y/N): " -n 1 -r
-            echo
-            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-                return
-            fi
-        fi
-
-        if go run scripts/migrate_encryption.go; then
-            log_success "數據遷移完成"
-        else
-            log_error "數據遷移失敗"
-            exit 1
-        fi
-    else
-        log_warning "未找到數據庫，跳過遷移"
-    fi
-}
-
-# 設置環境變數
-setup_env_vars() {
-    log_info "設置環境變數..."
-
-    if [ -f ".secrets/master.key" ]; then
-        MASTER_KEY=$(cat .secrets/master.key)
-
-        # 添加到當前 shell 配置
-        SHELL_RC="$HOME/.bashrc"
-        if [ -f "$HOME/.zshrc" ]; then
-            SHELL_RC="$HOME/.zshrc"
-        fi
-
-        if ! grep -q "NOFX_MASTER_KEY" "$SHELL_RC" 2>/dev/null; then
-            echo "" >> "$SHELL_RC"
-            echo "# NOFX 加密系統主密鑰" >> "$SHELL_RC"
-            echo "export NOFX_MASTER_KEY='$MASTER_KEY'" >> "$SHELL_RC"
-            log_success "主密鑰已添加到 $SHELL_RC"
-        else
-            log_warning "主密鑰已存在於 $SHELL_RC"
-        fi
-
-        # 導出到當前 session
-        export NOFX_MASTER_KEY="$MASTER_KEY"
-        log_success "主密鑰已導出到當前 session"
-    else
-        log_warning "主密鑰文件未生成，請先運行應用初始化"
-    fi
-}
-
-# 驗證部署
-verify_deployment() {
-    log_info "驗證部署結果..."
-
-    # 1. 檢查密鑰檔案
-    if [ -f ".secrets/rsa_private.pem" ] && [ -f ".secrets/rsa_public.pem" ] && [ -f ".secrets/master.key" ]; then
-        log_success "密鑰檔案完整"
-    else
-        log_error "密鑰檔案缺失，請檢查日誌"
+    # 檢查 .env 文件
+    if [ ! -f ".env" ]; then
+        log_error ".env 文件不存在"
         return 1
     fi
 
-    # 2. 檢查檔案權限
-    PERM=$(stat -f "%Lp" .secrets 2>/dev/null || stat -c "%a" .secrets 2>/dev/null)
-    if [ "$PERM" = "700" ]; then
-        log_success "密鑰目錄權限正確 (700)"
-    else
-        log_warning "密鑰目錄權限為 $PERM，建議修改為 700"
-        chmod 700 .secrets
+    # 檢查環境變數
+    source .env 2>/dev/null || true
+
+    if [ -z "$NOFX_MASTER_KEY" ]; then
+        log_error "NOFX_MASTER_KEY 未設置"
+        return 1
     fi
 
-    # 3. 檢查資料庫加密
-    if [ -f "config.db" ] && command -v sqlite3 &> /dev/null; then
-        SAMPLE=$(sqlite3 config.db "SELECT api_key FROM exchanges WHERE api_key != '' LIMIT 1;" 2>/dev/null || echo "")
-        if echo "$SAMPLE" | grep -q "=="; then
-            log_success "數據庫密鑰已加密（Base64 格式）"
-        else
-            log_warning "數據庫可能未加密或無數據"
-        fi
+    if [ -z "$NOFX_RSA_PRIVATE_KEY" ]; then
+        log_error "NOFX_RSA_PRIVATE_KEY 未設置"
+        return 1
     fi
 
-    log_success "部署驗證通過"
+    if [ -z "$NOFX_RSA_PUBLIC_KEY" ]; then
+        log_error "NOFX_RSA_PUBLIC_KEY 未設置"
+        return 1
+    fi
+
+    # 驗證主密鑰長度 (base64 編碼的 32 字節應該是 44 字符)
+    local key_len=${#NOFX_MASTER_KEY}
+    if [ "$key_len" -lt 40 ] || [ "$key_len" -gt 50 ]; then
+        log_warning "主密鑰長度可能不正確: $key_len 字符"
+    fi
+
+    log_success "配置驗證通過"
 }
 
 # 打印後續步驟
 print_next_steps() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "${GREEN}🎉 加密系統部署成功！${NC}"
+    echo -e "${GREEN}🎉 加密系統配置完成！${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "📝 後續步驟:"
     echo ""
-    echo "  1️⃣  啟動後端服務:"
-    echo "     $ go run main.go"
+    echo "  1️⃣  加載環境變數到當前 shell:"
+    echo "     $ source .env"
     echo ""
-    echo "  2️⃣  啟動前端服務:"
-    echo "     $ cd web && npm run dev"
+    echo "  2️⃣  使用 Docker Compose 啟動服務:"
+    echo "     $ docker-compose up -d"
     echo ""
-    echo "  3️⃣  驗證加密功能:"
-    echo "     $ curl http://localhost:8080/api/crypto/public-key"
-    echo ""
-    echo "  4️⃣  查看審計日誌:"
-    echo "     $ sqlite3 config.db 'SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 10;'"
+    echo "  3️⃣  驗證服務健康:"
+    echo "     $ curl http://localhost:8080/api/health"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "⚠️  重要提醒:"
+    echo -e "${RED}⚠️  重要警告:${NC}"
     echo ""
-    echo "  • 請妥善保管 .secrets/ 目錄（已設置為 700 權限）"
-    echo "  • 生產環境務必使用環境變數管理主密鑰"
-    echo "  • 定期執行密鑰輪換（建議每季度一次）"
-    echo "  • 數據庫備份已保存，驗證無誤後可手動刪除"
+    echo "  • 密鑰已保存到 .env 文件，請妥善保管！"
+    echo "  • 丟失主密鑰將導致所有加密數據無法恢復！"
+    echo "  • .env 文件已添加到 .gitignore，切勿手動提交到 Git"
+    echo "  • 建議將密鑰備份到安全的密鑰管理系統（如 HashiCorp Vault）"
     echo ""
-    echo "📚 詳細文檔:"
-    echo "  - 快速開始: cat SECURITY_QUICKSTART.md"
-    echo "  - 完整指南: cat ENCRYPTION_DEPLOYMENT.md"
+    echo "📋 生成的環境變數:"
+    echo ""
+    echo "  NOFX_MASTER_KEY=${MASTER_KEY:0:20}..."
+    echo "  NOFX_RSA_PRIVATE_KEY=${RSA_PRIVATE_KEY:0:30}..."
+    echo "  NOFX_RSA_PUBLIC_KEY=${RSA_PUBLIC_KEY:0:30}..."
     echo ""
 }
 
@@ -250,37 +294,40 @@ print_next_steps() {
 main() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "${BLUE}🔐 NOFX 加密系統部署腳本${NC}"
+    echo -e "${BLUE}🔐 NOFX 加密系統部署腳本 (v2.0 - 環境變數版本)${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
-    # 確認執行
-    log_warning "此腳本將:"
-    echo "  1. 備份現有數據庫"
-    echo "  2. 生成 RSA-4096 密鑰對"
-    echo "  3. 生成 AES-256 主密鑰"
-    echo "  4. 遷移現有數據到加密格式"
-    echo "  5. 設置環境變數"
-    echo ""
-    read -p "是否繼續？(y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        log_info "已取消部署"
-        exit 0
+    # 檢查依賴
+    check_dependencies
+
+    # 檢查現有配置
+    check_existing_env
+
+    # 嘗試從舊版本遷移
+    local migrated=$(migrate_from_old_version)
+
+    # 如果沒有遷移，則生成新密鑰
+    if [ -z "$MASTER_KEY" ]; then
+        MASTER_KEY=$(generate_master_key)
     fi
 
-    # 執行部署步驟
-    check_dependencies
-    backup_database
-    setup_secrets_dir
+    if [ -z "$RSA_PRIVATE_KEY" ] || [ -z "$RSA_PUBLIC_KEY" ]; then
+        generate_rsa_keys
+    fi
+
+    # 寫入 .env 文件
+    write_env_file
+
+    # 更新 .gitignore
     update_gitignore
-    install_dependencies
-    run_tests
-    migrate_data
-    setup_env_vars
-    verify_deployment
+
+    # 驗證配置
+    verify_config
+
+    # 打印後續步驟
     print_next_steps
 }
 
 # 執行主函數
-main
+main "$@"

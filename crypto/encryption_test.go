@@ -1,11 +1,24 @@
 package crypto
 
 import (
+	"os"
 	"testing"
 )
 
+// skipIfNoEnvKeys 如果環境變數未設置則跳過測試
+func skipIfNoEnvKeys(t *testing.T) {
+	if os.Getenv("NOFX_MASTER_KEY") == "" {
+		t.Skip("跳過：NOFX_MASTER_KEY 環境變數未設置")
+	}
+	if os.Getenv("NOFX_RSA_PRIVATE_KEY") == "" || os.Getenv("NOFX_RSA_PUBLIC_KEY") == "" {
+		t.Skip("跳過：RSA 密鑰環境變數未設置")
+	}
+}
+
 // TestRSAKeyPairGeneration 測試 RSA 密鑰對生成
 func TestRSAKeyPairGeneration(t *testing.T) {
+	skipIfNoEnvKeys(t)
+
 	em, err := GetEncryptionManager()
 	if err != nil {
 		t.Fatalf("初始化加密管理器失敗: %v", err)
@@ -25,6 +38,8 @@ func TestRSAKeyPairGeneration(t *testing.T) {
 
 // TestDatabaseEncryption 測試數據庫加密/解密
 func TestDatabaseEncryption(t *testing.T) {
+	skipIfNoEnvKeys(t)
+
 	em, err := GetEncryptionManager()
 	if err != nil {
 		t.Fatalf("初始化加密管理器失敗: %v", err)
@@ -66,6 +81,8 @@ func TestDatabaseEncryption(t *testing.T) {
 
 // TestHybridEncryption 測試混合加密（前端 → 後端場景）
 func TestHybridEncryption(t *testing.T) {
+	skipIfNoEnvKeys(t)
+
 	_, err := GetEncryptionManager()
 	if err != nil {
 		t.Fatalf("初始化加密管理器失敗: %v", err)
@@ -82,6 +99,8 @@ func TestHybridEncryption(t *testing.T) {
 
 // TestEmptyString 測試空字串處理
 func TestEmptyString(t *testing.T) {
+	skipIfNoEnvKeys(t)
+
 	em, err := GetEncryptionManager()
 	if err != nil {
 		t.Fatalf("初始化加密管理器失敗: %v", err)
@@ -106,6 +125,8 @@ func TestEmptyString(t *testing.T) {
 
 // TestInvalidCiphertext 測試無效密文處理
 func TestInvalidCiphertext(t *testing.T) {
+	skipIfNoEnvKeys(t)
+
 	em, err := GetEncryptionManager()
 	if err != nil {
 		t.Fatalf("初始化加密管理器失敗: %v", err)

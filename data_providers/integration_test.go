@@ -538,12 +538,12 @@ func TestFullPromptGeneration(t *testing.T) {
 
 		// 验证仓位限制（基于AccountEquity=1000的默认值）
 		expectations := map[string]string{
-			"800":  "altcoin_min_position (1000*0.8)",
-			"1500": "altcoin_max_position (1000*1.5)",
-			"5000": "btc_eth_min_position (1000*5)",
-			"10000": "btc_eth_max_position (1000*10)",
-			"10x":   "altcoin_leverage",
-			"20x":   "btc_eth_leverage",
+			"800":     "altcoin_min_position (1000*0.8)",
+			"1500":    "altcoin_max_position (1000*1.5)",
+			"5000":    "btc_eth_min_position (1000*5)",
+			"10000":   "btc_eth_max_position (1000*10)",
+			"10x":     "altcoin_leverage",
+			"20x":     "btc_eth_leverage",
 			"12 USDT": "min_position_size_general",
 			"60 USDT": "min_position_size_btc_eth",
 		}
@@ -568,11 +568,11 @@ func TestFullPromptGeneration(t *testing.T) {
 
 		// 验证账户数据（来自AccountProvider默认值）
 		accountExpectations := map[string]string{
-			"1000.00":  "total_equity",
-			"800.00":   "available_balance",
-			"80.0":     "available_balance_pct",
-			"5.50":     "total_pnl_pct",
-			"20.0":     "margin_used_pct",
+			"1000.00": "total_equity",
+			"800.00":  "available_balance",
+			"80.0":    "available_balance_pct",
+			"5.50":    "total_pnl_pct",
+			"20.0":    "margin_used_pct",
 		}
 
 		for expected, desc := range accountExpectations {

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"nofx/logger"
 	"strings"
 	"sync"
 	"time"
-	"nofx/logger"
 )
 
 type WSMonitor struct {

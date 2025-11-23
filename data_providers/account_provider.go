@@ -19,12 +19,12 @@ type accountFieldHandler func(*AccountProvider, context.Context) (interface{}, e
 
 // 字段到方法的映射
 var accountFieldHandlers = map[string]accountFieldHandler{
-	"total_equity":        (*AccountProvider).fetchTotalEquity,
-	"available_balance":   (*AccountProvider).fetchAvailableBalance,
+	"total_equity":          (*AccountProvider).fetchTotalEquity,
+	"available_balance":     (*AccountProvider).fetchAvailableBalance,
 	"available_balance_pct": (*AccountProvider).fetchAvailableBalancePct,
-	"total_pnl_pct":       (*AccountProvider).fetchTotalPnLPct,
-	"margin_used_pct":     (*AccountProvider).fetchMarginUsedPct,
-	"position_count":      (*AccountProvider).fetchPositionCount,
+	"total_pnl_pct":         (*AccountProvider).fetchTotalPnLPct,
+	"margin_used_pct":       (*AccountProvider).fetchMarginUsedPct,
+	"position_count":        (*AccountProvider).fetchPositionCount,
 }
 
 // NewAccountProvider 创建AccountProvider

@@ -13,7 +13,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -47,11 +46,18 @@ type CryptoService struct {
 	dataKey    []byte
 }
 
-func NewCryptoService(privateKeyPath string) (*CryptoService, error) {
-	// 读取私钥文件
-	privateKeyPEM, err := ioutil.ReadFile(privateKeyPath)
+// NewCryptoService 創建加密服務（從環境變數加載 RSA 私鑰）
+func NewCryptoService() (*CryptoService, error) {
+	// 從環境變數加載私鑰
+	privateKeyEnv := os.Getenv("NOFX_RSA_PRIVATE_KEY")
+	if privateKeyEnv == "" {
+		return nil, errors.New("NOFX_RSA_PRIVATE_KEY 環境變數未設置")
+	}
+
+	// Base64 解碼
+	privateKeyPEM, err := base64.StdEncoding.DecodeString(privateKeyEnv)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read private key file %s: %w", privateKeyPath, err)
+		return nil, fmt.Errorf("failed to decode NOFX_RSA_PRIVATE_KEY from base64: %w", err)
 	}
 
 	// 解析私钥
@@ -71,7 +77,6 @@ func NewCryptoService(privateKeyPath string) (*CryptoService, error) {
 		dataKey:    dataKey,
 	}, nil
 }
-
 
 func ParseRSAPrivateKeyFromPEM(pemBytes []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(pemBytes)

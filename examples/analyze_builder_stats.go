@@ -23,12 +23,12 @@ const (
 
 // UserStats 用户统计
 type UserStats struct {
-	Address       string
-	TradeCount    int
-	TotalFees     float64
-	FirstTradeAt  time.Time
-	LastTradeAt   time.Time
-	CoinsTraded   map[string]int
+	Address      string
+	TradeCount   int
+	TotalFees    float64
+	FirstTradeAt time.Time
+	LastTradeAt  time.Time
+	CoinsTraded  map[string]int
 }
 
 func main() {

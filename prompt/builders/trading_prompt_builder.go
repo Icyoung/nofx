@@ -1,3 +1,9 @@
+//go:build ignore
+// +build ignore
+
+// TODO: 此文件引用了未實現的 sections.NewTemplateSection、orchestrator.FilledSections 等函數
+// 待 orchestrator 模塊完成後移除 ignore 標記
+
 package builders
 
 import (

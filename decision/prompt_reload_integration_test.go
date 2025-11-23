@@ -6,10 +6,12 @@ import (
 	"strings"
 	"testing"
 )
+
 var (
 	// promptsDir 提示词文件夹路径
 	promptsDir = "prompts"
 )
+
 // TestPromptReloadEndToEnd 端到端测试：验证从文件修改到决策引擎使用的完整流程
 func TestPromptReloadEndToEnd(t *testing.T) {
 	// 保存原始的 promptsDir

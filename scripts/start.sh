@@ -82,78 +82,95 @@ check_env() {
 }
 
 # ------------------------------------------------------------------------
-# Validation: Encryption Environment (RSA Keys + Data Encryption Key)
+# Validation: Encryption Environment (Environment Variables)
 # ------------------------------------------------------------------------
 check_encryption() {
     local need_setup=false
-    
+
     print_info "检查加密环境..."
-    
-    # 检查RSA密钥对
-    if [ ! -f "secrets/rsa_key" ] || [ ! -f "secrets/rsa_key.pub" ]; then
-        print_warning "RSA密钥对不存在"
+
+    # 加载 .env 文件（如果存在）
+    if [ -f ".env" ]; then
+        set -a
+        source .env 2>/dev/null || true
+        set +a
+    fi
+
+    # 检查主密钥
+    if [ -z "$NOFX_MASTER_KEY" ] && ! grep -q "^NOFX_MASTER_KEY=" .env 2>/dev/null; then
+        print_warning "主密钥未配置 (NOFX_MASTER_KEY)"
         need_setup=true
     fi
-    
-    # 检查数据加密密钥
-    if [ ! -f ".env" ] || ! grep -q "^DATA_ENCRYPTION_KEY=" .env; then
-        print_warning "数据加密密钥未配置"
+
+    # 检查RSA私钥
+    if [ -z "$NOFX_RSA_PRIVATE_KEY" ] && ! grep -q "^NOFX_RSA_PRIVATE_KEY=" .env 2>/dev/null; then
+        print_warning "RSA私钥未配置 (NOFX_RSA_PRIVATE_KEY)"
         need_setup=true
     fi
-    
+
+    # 检查RSA公钥
+    if [ -z "$NOFX_RSA_PUBLIC_KEY" ] && ! grep -q "^NOFX_RSA_PUBLIC_KEY=" .env 2>/dev/null; then
+        print_warning "RSA公钥未配置 (NOFX_RSA_PUBLIC_KEY)"
+        need_setup=true
+    fi
+
     # 检查JWT认证密钥
-    if [ ! -f ".env" ] || ! grep -q "^JWT_SECRET=" .env; then
+    if [ -z "$JWT_SECRET" ] && ! grep -q "^JWT_SECRET=" .env 2>/dev/null; then
         print_warning "JWT认证密钥未配置"
         need_setup=true
     fi
-    
-    # 如果需要设置加密环境，直接自动设置
+
+    # 如果需要设置加密环境，运行部署脚本
     if [ "$need_setup" = "true" ]; then
-        print_info "🔐 检测到加密环境未配置，正在自动设置..."
+        print_info "🔐 检测到加密环境未配置..."
         print_info "加密环境用于保护敏感数据（API密钥、私钥等）"
         echo ""
 
-        # 检查加密设置脚本是否存在
-        if [ -f "scripts/setup_encryption.sh" ]; then
-            print_info "加密系统将保护: API密钥、私钥、Hyperliquid代理钱包"
-            echo ""
-
-            # 自动运行加密设置脚本
-            echo -e "Y\nn\nn" | bash scripts/setup_encryption.sh
-            if [ $? -eq 0 ]; then
-                echo ""
-                print_success "🔐 加密环境设置完成！"
-                print_info "  • RSA-2048密钥对已生成"
-                print_info "  • AES-256数据加密密钥已配置"
-                print_info "  • JWT认证密钥已配置"
-                print_info "  • 所有敏感数据现在都受加密保护"
-                echo ""
+        # 检查加密部署脚本是否存在
+        if [ -f "deploy_encryption.sh" ]; then
+            print_info "是否自动生成加密密钥？"
+            read -p "确认？(Y/n): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
+                bash deploy_encryption.sh
+                if [ $? -eq 0 ]; then
+                    print_success "🔐 加密环境设置完成！"
+                    # 重新加载环境变量
+                    if [ -f ".env" ]; then
+                        set -a
+                        source .env 2>/dev/null || true
+                        set +a
+                    fi
+                else
+                    print_error "加密环境设置失败"
+                    exit 1
+                fi
             else
-                print_error "加密环境设置失败"
+                print_error "加密环境未配置，无法启动服务"
+                print_info "请运行: ./deploy_encryption.sh"
                 exit 1
             fi
         else
-            print_error "加密设置脚本不存在: scripts/setup_encryption.sh"
-            print_info "请手动运行: ./scripts/setup_encryption.sh"
+            print_error "加密部署脚本不存在: deploy_encryption.sh"
+            print_info ""
+            print_info "手动配置方法："
+            print_info "  1. 生成主密钥: openssl rand -base64 32"
+            print_info "  2. 生成RSA密钥: openssl genrsa -out rsa_key 4096"
+            print_info "  3. 导出公钥: openssl rsa -in rsa_key -pubout -out rsa_key.pub"
+            print_info "  4. 添加到 .env："
+            print_info "     NOFX_MASTER_KEY=<主密钥>"
+            print_info "     NOFX_RSA_PRIVATE_KEY=\$(base64 -w0 rsa_key)"
+            print_info "     NOFX_RSA_PUBLIC_KEY=\$(base64 -w0 rsa_key.pub)"
             exit 1
         fi
     else
         print_success "🔐 加密环境已配置"
-        print_info "  • RSA密钥对: secrets/rsa_key + secrets/rsa_key.pub"
-        print_info "  • 数据加密密钥: .env (DATA_ENCRYPTION_KEY)"
+        print_info "  • 主密钥: .env (NOFX_MASTER_KEY)"
+        print_info "  • RSA密钥对: .env (NOFX_RSA_PRIVATE_KEY, NOFX_RSA_PUBLIC_KEY)"
         print_info "  • JWT认证密钥: .env (JWT_SECRET)"
-        print_info "  • 加密算法: RSA-OAEP-2048 + AES-256-GCM + HS256"
-        print_info "  • 保护数据: API密钥、私钥、Hyperliquid代理钱包、用户认证"
-        
-        # 验证密钥文件权限
-        if [ -f "secrets/rsa_key" ]; then
-            local perm=$(stat -f "%A" "secrets/rsa_key" 2>/dev/null || stat -c "%a" "secrets/rsa_key" 2>/dev/null)
-            if [ "$perm" != "600" ]; then
-                print_warning "修复RSA私钥权限..."
-                chmod 600 secrets/rsa_key
-            fi
-        fi
-        
+        print_info "  • 加密算法: RSA-4096 + AES-256-GCM + HS256"
+
+        # 验证环境文件权限
         if [ -f ".env" ]; then
             local perm=$(stat -f "%A" ".env" 2>/dev/null || stat -c "%a" ".env" 2>/dev/null)
             if [ "$perm" != "600" ]; then

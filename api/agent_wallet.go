@@ -539,11 +539,11 @@ func (s *Server) handleConfirmBuilderFee(c *gin.Context) {
 
 // VerifyAuthorizationResponse 验证授权状态响应
 type VerifyAuthorizationResponse struct {
-	Success          bool      `json:"success"`
-	Message          string    `json:"message,omitempty"`
-	Authorized       bool      `json:"authorized"`        // Hyperliquid 实际授权状态
-	BuilderAuthorized bool     `json:"builder_authorized"` // Builder Fee 授权状态
-	CheckedAt        time.Time `json:"checked_at"`
+	Success           bool      `json:"success"`
+	Message           string    `json:"message,omitempty"`
+	Authorized        bool      `json:"authorized"`         // Hyperliquid 实际授权状态
+	BuilderAuthorized bool      `json:"builder_authorized"` // Builder Fee 授权状态
+	CheckedAt         time.Time `json:"checked_at"`
 }
 
 // handleVerifyAgentAuthorization 验证 Agent Wallet 在 Hyperliquid 上的授权状态

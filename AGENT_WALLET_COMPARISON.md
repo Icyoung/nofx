@@ -119,7 +119,7 @@ CREATE TABLE agent_wallets (
 
 1. **私钥加密** - 使用 `EncryptionManager.EncryptForDatabase()`
 2. **AES-256-GCM** - 行业标准加密算法
-3. **主密钥保护** - 存储在 `.secrets/master.key`（不提交 Git）
+3. **主密钥保护** - 通过环境变量 `NOFX_MASTER_KEY` 配置（不提交 Git）
 4. **数据库隔离** - 每个主钱包只能访问自己的 Agent
 
 #### 优点

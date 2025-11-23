@@ -15,7 +15,6 @@ import (
 )
 
 func main() {
-	privateKeyPath := flag.String("key", "secrets/rsa_key", "RSA 私钥路径")
 	dryRun := flag.Bool("dry-run", false, "仅检查需要迁移的数据，不写入数据库")
 	flag.Parse()
 
@@ -40,19 +39,22 @@ func main() {
 	if os.Getenv("DATA_ENCRYPTION_KEY") == "" {
 		log.Fatalf("迁移失败: DATA_ENCRYPTION_KEY 环境变量未设置")
 	}
+	if os.Getenv("NOFX_RSA_PRIVATE_KEY") == "" {
+		log.Fatalf("迁移失败: NOFX_RSA_PRIVATE_KEY 环境变量未设置")
+	}
 
-	if err := run(*privateKeyPath, *dryRun); err != nil {
+	if err := run(*dryRun); err != nil {
 		log.Fatalf("迁移失败: %v", err)
 	}
 }
 
-func run(privateKeyPath string, dryRun bool) error {
+func run(dryRun bool) error {
 	log.SetFlags(0)
 
-	// 直接使用指定的私钥路径
-	log.Printf("使用私钥文件: %s", privateKeyPath)
-	
-	cryptoService, err := crypto.NewCryptoService(privateKeyPath)
+	// 從環境變數 NOFX_RSA_PRIVATE_KEY 加載密鑰
+	log.Printf("從環境變數 NOFX_RSA_PRIVATE_KEY 加載 RSA 密鑰...")
+
+	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {
 		return fmt.Errorf("初始化加密服务失败: %w", err)
 	}
