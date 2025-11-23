@@ -223,7 +223,7 @@ export function AgentWalletBackendPage() {
         walletClient,
         {
           agentAddress: agentWallet.agent_address,
-          agentName: '', // 可选：可以添加 UI 讓用户输入 Agent 名稱
+          agentName: 'NOFX',
           hyperliquidChain: agentWallet.hyperliquid_chain as
             | 'Mainnet'
             | 'Testnet',
@@ -234,7 +234,7 @@ export function AgentWalletBackendPage() {
       const response = await authorizeAgent({
         main_wallet: address,
         signature: signatureHex,
-        agent_name: '',
+        agent_name: 'NOFX',
         nonce,
         signature_rsv: signature,
       })

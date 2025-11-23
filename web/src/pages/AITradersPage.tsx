@@ -199,6 +199,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         availableModels={enabledModels}
         availableExchanges={enabledExchanges}
         onSave={handleCreateTrader}
+        userSignalSource={userSignalSource}
+        onOpenSignalSourceModal={() => setShowSignalSourceModal(true)}
       />
 
       <TraderConfigModal
@@ -209,6 +211,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
         availableModels={enabledModels}
         availableExchanges={enabledExchanges}
         onSave={handleSaveEditTrader}
+        userSignalSource={userSignalSource}
+        onOpenSignalSourceModal={() => setShowSignalSourceModal(true)}
       />
 
       {showModelModal && (

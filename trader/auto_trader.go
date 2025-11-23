@@ -1454,62 +1454,73 @@ func sortDecisionsByPriority(decisions []decision.Decision) []decision.Decision 
 
 // getCandidateCoins 获取交易员的候选币种列表
 func (at *AutoTrader) getCandidateCoins() ([]decision.CandidateCoin, error) {
-	logger.Infof("🔍 [DEBUG] [%s] getCandidateCoins: tradingCoins=%v (len=%d), defaultCoins=%v (len=%d)",
-		at.name, at.tradingCoins, len(at.tradingCoins), at.defaultCoins, len(at.defaultCoins))
-	if len(at.tradingCoins) == 0 {
-		// 使用数据库配置的默认币种列表
-		var candidateCoins []decision.CandidateCoin
+	logger.Infof("🔍 [DEBUG] [%s] getCandidateCoins: tradingCoins=%v (len=%d), defaultCoins=%v (len=%d), CoinPoolURL=%s",
+		at.name, at.tradingCoins, len(at.tradingCoins), at.defaultCoins, len(at.defaultCoins), at.config.CoinPoolAPIURL)
 
-		if len(at.defaultCoins) > 0 {
-			// 使用数据库中配置的默认币种
-			for _, coin := range at.defaultCoins {
-				symbol := normalizeSymbol(coin)
-				candidateCoins = append(candidateCoins, decision.CandidateCoin{
-					Symbol:  symbol,
-					Sources: []string{"default"}, // 标记为数据库默认币种
-				})
-			}
-			logger.Infof("📋 [%s] 使用数据库默认币种: %d个币种 %v",
-				at.name, len(candidateCoins), at.defaultCoins)
-			return candidateCoins, nil
-		} else {
-			// 如果数据库中没有配置默认币种，则使用AI500+OI Top作为fallback
-			const ai500Limit = 20 // AI500取前20个评分最高的币种
+	// 优先级 1: 如果启用了 Coin Pool（URL 不为空），优先从外部数据源获取币种
+	if at.config.CoinPoolAPIURL != "" {
+		const ai500Limit = 30 // 从 Coin Pool 获取前30个币种
 
-			mergedPool, err := pool.GetMergedCoinPool(ai500Limit)
-			if err != nil {
-				return nil, fmt.Errorf("获取合并币种池失败: %w", err)
-			}
-
-			// 构建候选币种列表（包含来源信息）
+		mergedPool, err := pool.GetMergedCoinPool(ai500Limit)
+		if err != nil {
+			logger.Warnf("⚠️ [%s] 从 Coin Pool 获取币种失败: %v，将使用备用方案", at.name, err)
+			// 如果 Coin Pool 失败，降级到自定义币种或默认币种
+		} else if len(mergedPool.AllSymbols) > 0 {
+			var candidateCoins []decision.CandidateCoin
 			for _, symbol := range mergedPool.AllSymbols {
 				sources := mergedPool.SymbolSources[symbol]
 				candidateCoins = append(candidateCoins, decision.CandidateCoin{
 					Symbol:  symbol,
-					Sources: sources, // "ai500" 和/或 "oi_top"
+					Sources: sources, // "coin_pool" 或 "oi_top"
 				})
 			}
-
-			logger.Infof("📋 [%s] 数据库无默认币种配置，使用AI500+OI Top: AI500前%d + OI_Top20 = 总计%d个候选币种",
-				at.name, ai500Limit, len(candidateCoins))
+			logger.Infof("📡 [%s] 使用外部数据源 Coin Pool: 获取了 %d 个币种",
+				at.name, len(candidateCoins))
 			return candidateCoins, nil
 		}
-	} else {
-		// 使用自定义币种列表
+	}
+
+	// 优先级 2: 使用自定义币种列表（如果有的话）
+	if len(at.tradingCoins) > 0 {
 		var candidateCoins []decision.CandidateCoin
 		for _, coin := range at.tradingCoins {
-			// 确保币种格式正确（转为大写USDT交易对）
 			symbol := normalizeSymbol(coin)
 			candidateCoins = append(candidateCoins, decision.CandidateCoin{
 				Symbol:  symbol,
-				Sources: []string{"custom"}, // 标记为自定义来源
+				Sources: []string{"custom"},
 			})
 		}
-
 		logger.Infof("📋 [%s] 使用自定义币种: %d个币种 %v",
 			at.name, len(candidateCoins), at.tradingCoins)
 		return candidateCoins, nil
 	}
+
+	// 优先级 3: 使用数据库默认币种
+	if len(at.defaultCoins) > 0 {
+		var candidateCoins []decision.CandidateCoin
+		for _, coin := range at.defaultCoins {
+			symbol := normalizeSymbol(coin)
+			candidateCoins = append(candidateCoins, decision.CandidateCoin{
+				Symbol:  symbol,
+				Sources: []string{"default"},
+			})
+		}
+		logger.Infof("📋 [%s] 使用数据库默认币种: %d个币种 %v",
+			at.name, len(candidateCoins), at.defaultCoins)
+		return candidateCoins, nil
+	}
+
+	// 优先级 4: 兜底 - 使用硬编码的默认币种
+	defaultSymbols := []string{"BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"}
+	var candidateCoins []decision.CandidateCoin
+	for _, symbol := range defaultSymbols {
+		candidateCoins = append(candidateCoins, decision.CandidateCoin{
+			Symbol:  symbol,
+			Sources: []string{"fallback"},
+		})
+	}
+	logger.Warnf("⚠️ [%s] 无任何币种配置，使用兜底默认币种: %v", at.name, defaultSymbols)
+	return candidateCoins, nil
 }
 
 // normalizeSymbol 标准化币种符号（确保以USDT结尾）

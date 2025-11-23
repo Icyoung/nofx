@@ -203,6 +203,9 @@ export const translations = {
     signalSourceConfiguration: 'Signal Source Configuration',
     useCoinPoolSignal: 'Use Coin Pool Signal',
     useOiTopSignal: 'Use OI Top Signal',
+    coinPoolUrlNotSet: 'Coin Pool URL not configured',
+    oiTopUrlNotSet: 'OI Top URL not configured',
+    configureSignalSource: 'Configure Signal Source',
     tradingStrategyPrompt: 'Trading Strategy Prompt',
     selectPromptTemplateHint:
       'Select a preset trading strategy template (includes trading philosophy, risk control principles, etc.)',
@@ -1243,6 +1246,9 @@ export const translations = {
     signalSourceConfiguration: '信号源配置',
     useCoinPoolSignal: '使用 Coin Pool 信号',
     useOiTopSignal: '使用 OI Top 信号',
+    coinPoolUrlNotSet: 'Coin Pool URL 未设定',
+    oiTopUrlNotSet: 'OI Top URL 未设定',
+    configureSignalSource: '设定信号源',
     tradingStrategyPrompt: '交易策略提示词',
     selectPromptTemplateHint:
       '选择预设的交易策略模板（包含交易哲学、风控原则等）',

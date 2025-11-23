@@ -835,6 +835,8 @@ type UpdateTraderRequest struct {
 	OverrideBasePrompt   bool    `json:"override_base_prompt"`
 	SystemPromptTemplate string  `json:"system_prompt_template"`
 	IsCrossMargin        *bool   `json:"is_cross_margin"`
+	UseCoinPool          bool    `json:"use_coin_pool"`
+	UseOITop             bool    `json:"use_oi_top"`
 	KlineIntervals       string  `json:"kline_intervals"` // K线时间间隔配置
 }
 
@@ -931,6 +933,8 @@ func (s *Server) handleUpdateTrader(c *gin.Context) {
 		OverrideBasePrompt:   req.OverrideBasePrompt,
 		SystemPromptTemplate: systemPromptTemplate,
 		IsCrossMargin:        isCrossMargin,
+		UseCoinPool:          req.UseCoinPool,
+		UseOITop:             req.UseOITop,
 		ScanIntervalMinutes:  scanIntervalMinutes,
 		KlineIntervals:       req.KlineIntervals,       // K线时间间隔配置
 		IsRunning:            existingTrader.IsRunning, // 保持原值
@@ -1824,6 +1828,7 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 		// 验证JWT token
 		claims, err := auth.ValidateJWT(tokenString)
 		if err != nil {
+			logger.Warnf("❌ JWT验证失败: %v, token前20字符: %s...", err, tokenString[:min(20, len(tokenString))])
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的token: " + err.Error()})
 			c.Abort()
 			return

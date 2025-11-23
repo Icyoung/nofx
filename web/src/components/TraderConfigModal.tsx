@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { AIModel, Exchange, CreateTraderRequest } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
@@ -32,6 +32,11 @@ interface TraderConfigData {
   kline_intervals?: string // K线时间间隔配置
 }
 
+interface SignalSourceUrls {
+  coinPoolUrl: string
+  oiTopUrl: string
+}
+
 interface TraderConfigModalProps {
   isOpen: boolean
   onClose: () => void
@@ -40,6 +45,9 @@ interface TraderConfigModalProps {
   availableModels?: AIModel[]
   availableExchanges?: Exchange[]
   onSave?: (data: CreateTraderRequest) => Promise<void>
+  // 信號源相關
+  userSignalSource?: SignalSourceUrls
+  onOpenSignalSourceModal?: () => void
 }
 
 export function TraderConfigModal({
@@ -50,6 +58,8 @@ export function TraderConfigModal({
   availableModels = [],
   availableExchanges = [],
   onSave,
+  userSignalSource,
+  onOpenSignalSourceModal,
 }: TraderConfigModalProps) {
   const { language } = useLanguage()
   const [formData, setFormData] = useState<TraderConfigData>({
@@ -82,14 +92,17 @@ export function TraderConfigModal({
   const [showKlineSelector, setShowKlineSelector] = useState(false)
   const [showHyperLiquidTutorial, setShowHyperLiquidTutorial] = useState(false)
 
+  // 使用 ref 追踪是否已初始化，避免重複重置表單
+  const isInitialized = useRef(false)
+
   useEffect(() => {
     if (traderData) {
-      // 確保編輯時 initial_balance 有合理的默認值
+      // 編輯模式：加載已有數據
       const dataWithBalance = {
         ...traderData,
         initial_balance: traderData.initial_balance && traderData.initial_balance > 0
           ? traderData.initial_balance
-          : 1000, // 如果為 0 或未定義，使用默認值
+          : 1000,
       }
       setFormData(dataWithBalance)
       // 设置已选择的币种
@@ -108,11 +121,13 @@ export function TraderConfigModal({
           .filter((s) => s)
         setSelectedKlineIntervals(intervals)
       }
-    } else if (!isEditMode) {
+      isInitialized.current = true
+    } else if (!isEditMode && !isInitialized.current) {
+      // 創建模式：初始化表單（使用空字串，之後的 useEffect 會填充正確值）
       setFormData({
         trader_name: '',
-        ai_model: availableModels[0]?.id || '',
-        exchange_id: availableExchanges[0]?.id || '',
+        ai_model: '',
+        exchange_id: '',
         btc_eth_leverage: 5,
         altcoin_leverage: 3,
         trading_symbols: '',
@@ -126,6 +141,9 @@ export function TraderConfigModal({
         scan_interval_minutes: 3,
         kline_intervals: '',
       })
+      setSelectedCoins([])
+      setSelectedKlineIntervals([])
+      isInitialized.current = true
     }
     // 确保旧数据也有默认的 system_prompt_template
     if (traderData && traderData.system_prompt_template === undefined) {
@@ -134,7 +152,28 @@ export function TraderConfigModal({
         system_prompt_template: 'default',
       }))
     }
-  }, [traderData, isEditMode, availableModels, availableExchanges])
+  }, [traderData, isEditMode])
+
+  // Modal 關閉時重置初始化標記
+  useEffect(() => {
+    if (!isOpen) {
+      isInitialized.current = false
+    }
+  }, [isOpen])
+
+  // 當 availableModels 或 availableExchanges 載入後，自動填充 ai_model 和 exchange_id（創建模式）
+  useEffect(() => {
+    if (!isEditMode && !traderData) {
+      // 如果 ai_model 為空但有可用模型，自動設定第一個
+      if ((!formData.ai_model || formData.ai_model === '') && availableModels.length > 0) {
+        setFormData(prev => ({ ...prev, ai_model: availableModels[0].id }))
+      }
+      // 如果 exchange_id 為空但有可用交易所，自動設定第一個
+      if ((!formData.exchange_id || formData.exchange_id === '') && availableExchanges.length > 0) {
+        setFormData(prev => ({ ...prev, exchange_id: availableExchanges[0].id }))
+      }
+    }
+  }, [availableModels, availableExchanges, isEditMode, traderData, formData.ai_model, formData.exchange_id])
 
   // 获取系统配置中的币种列表
   useEffect(() => {
@@ -217,17 +256,33 @@ export function TraderConfigModal({
     })
   }
 
+  // K 線間隔排序順序（從短到長）
+  const klineIntervalOrder: Record<string, number> = {
+    '1m': 1, '3m': 2, '5m': 3, '15m': 4, '30m': 5,
+    '1h': 6, '2h': 7, '4h': 8, '6h': 9, '8h': 10, '12h': 11,
+    '1d': 12, '1w': 13
+  }
+
+  const sortKlineIntervals = (intervals: string[]): string[] => {
+    return [...intervals].sort((a, b) => {
+      const orderA = klineIntervalOrder[a] ?? 999
+      const orderB = klineIntervalOrder[b] ?? 999
+      return orderA - orderB
+    })
+  }
+
   const handleKlineIntervalToggle = (interval: string) => {
     setSelectedKlineIntervals((prev) => {
       const newIntervals = prev.includes(interval)
         ? prev.filter((i) => i !== interval)
         : [...prev, interval]
 
-      // 同时更新 formData.kline_intervals
-      const intervalsString = newIntervals.join(',')
+      // 排序後再更新 formData.kline_intervals
+      const sortedIntervals = sortKlineIntervals(newIntervals)
+      const intervalsString = sortedIntervals.join(',')
       setFormData((current) => ({ ...current, kline_intervals: intervalsString }))
 
-      return newIntervals
+      return sortedIntervals
     })
   }
 
@@ -275,10 +330,14 @@ export function TraderConfigModal({
 
     setIsSaving(true)
     try {
+      // 使用 formData 的值，如果為空則使用第一個可用選項
+      const aiModelId = formData.ai_model || availableModels[0]?.id || ''
+      const exchangeId = formData.exchange_id || availableExchanges[0]?.id || ''
+
       const saveData: CreateTraderRequest = {
         name: formData.trader_name,
-        ai_model_id: formData.ai_model,
-        exchange_id: formData.exchange_id,
+        ai_model_id: aiModelId,
+        exchange_id: exchangeId,
         btc_eth_leverage: formData.btc_eth_leverage,
         altcoin_leverage: formData.altcoin_leverage,
         trading_symbols: formData.trading_symbols,
@@ -377,7 +436,7 @@ export function TraderConfigModal({
                     {t('aiModel', language)}
                   </label>
                   <select
-                    value={formData.ai_model}
+                    value={formData.ai_model || availableModels[0]?.id || ''}
                     onChange={(e) =>
                       handleInputChange('ai_model', e.target.value)
                     }
@@ -395,7 +454,7 @@ export function TraderConfigModal({
                     {t('exchange', language)}
                   </label>
                   <select
-                    value={formData.exchange_id}
+                    value={formData.exchange_id || availableExchanges[0]?.id || ''}
                     onChange={(e) =>
                       handleInputChange('exchange_id', e.target.value)
                     }
@@ -740,6 +799,49 @@ export function TraderConfigModal({
                 </label>
               </div>
             </div>
+            {/* 信號源 URL 狀態顯示 */}
+            {(formData.use_coin_pool || formData.use_oi_top) && (
+              <div className="mt-4 p-3 rounded" style={{ background: 'rgba(240, 185, 11, 0.1)', border: '1px solid rgba(240, 185, 11, 0.3)' }}>
+                {/* Coin Pool 狀態 */}
+                {formData.use_coin_pool && (
+                  <div className="text-sm mb-2">
+                    {userSignalSource?.coinPoolUrl ? (
+                      <div className="text-[#02C076]">
+                        ✅ Coin Pool: <span className="text-[#848E9C] break-all">{userSignalSource.coinPoolUrl.substring(0, 50)}...</span>
+                      </div>
+                    ) : (
+                      <div className="text-[#F0B90B]">
+                        ⚠️ {t('coinPoolUrlNotSet', language)}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* OI Top 狀態 */}
+                {formData.use_oi_top && (
+                  <div className="text-sm mb-2">
+                    {userSignalSource?.oiTopUrl ? (
+                      <div className="text-[#02C076]">
+                        ✅ OI Top: <span className="text-[#848E9C] break-all">{userSignalSource.oiTopUrl.substring(0, 50)}...</span>
+                      </div>
+                    ) : (
+                      <div className="text-[#F0B90B]">
+                        ⚠️ {t('oiTopUrlNotSet', language)}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {onOpenSignalSourceModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenSignalSourceModal}
+                    className="text-sm px-3 py-1 rounded mt-2"
+                    style={{ background: '#F0B90B', color: '#0B0E11', fontWeight: 500 }}
+                  >
+                    {t('configureSignalSource', language)}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Trading Prompt */}
@@ -895,14 +997,29 @@ export function TraderConfigModal({
           </button>
           {onSave && (
             <button
-              onClick={handleSave}
+              onClick={() => {
+                console.log('Button clicked, formData:', formData)
+                console.log('Disabled check:', {
+                  isSaving,
+                  trader_name: formData.trader_name,
+                  ai_model: formData.ai_model,
+                  exchange_id: formData.exchange_id
+                })
+                handleSave()
+              }}
               disabled={
                 isSaving ||
                 !formData.trader_name ||
-                !formData.ai_model ||
-                !formData.exchange_id
+                !(formData.ai_model || availableModels[0]?.id) ||
+                !(formData.exchange_id || availableExchanges[0]?.id)
               }
               className="px-8 py-3 bg-gradient-to-r from-[#F0B90B] to-[#E1A706] text-black rounded-lg hover:from-[#E1A706] hover:to-[#D4951E] transition-all duration-200 disabled:bg-[#848E9C] disabled:cursor-not-allowed font-medium shadow-lg"
+              title={
+                !formData.trader_name ? t('enterTraderName', language) :
+                !(formData.ai_model || availableModels[0]?.id) ? t('pleaseSelectModel', language) :
+                !(formData.exchange_id || availableExchanges[0]?.id) ? t('pleaseSelectExchange', language) :
+                ''
+              }
             >
               {isSaving ? t('saving', language) : isEditMode ? t('saveChanges', language) : t('createTrader', language)}
             </button>

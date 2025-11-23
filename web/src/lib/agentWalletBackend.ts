@@ -38,6 +38,7 @@ export interface AgentWallet {
 export interface CreateAgentWalletRequest {
   main_wallet: string
   hyperliquid_chain?: 'Mainnet' | 'Testnet'
+  regenerate?: boolean // 强制重新生成（删除旧的）
 }
 
 export interface CreateAgentWalletResponse {
@@ -77,13 +78,15 @@ export interface AuthorizeAgentResponse {
  */
 export async function createAgentWallet(
   mainWallet: string,
-  hyperliquidChain: 'Mainnet' | 'Testnet' = 'Mainnet'
+  hyperliquidChain: 'Mainnet' | 'Testnet' = 'Mainnet',
+  regenerate: boolean = false
 ): Promise<CreateAgentWalletResponse> {
   const response = await httpClient.post(
     `${API_BASE}/agent/create`,
     {
       main_wallet: mainWallet.toLowerCase(),
       hyperliquid_chain: hyperliquidChain,
+      regenerate: regenerate,
     } as CreateAgentWalletRequest,
     getAuthHeaders()
   )

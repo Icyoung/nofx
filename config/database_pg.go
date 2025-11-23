@@ -690,12 +690,14 @@ func (d *PostgreSQLDatabase) UpdateTrader(trader *TraderRecord) error {
 			name = $1, ai_model_id = $2, exchange_id = $3, initial_balance = $4,
 			scan_interval_minutes = $5, btc_eth_leverage = $6, altcoin_leverage = $7,
 			trading_symbols = $8, custom_prompt = $9, override_base_prompt = $10,
-			system_prompt_template = $11, is_cross_margin = $12, kline_intervals = $13, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $14 AND user_id = $15
+			system_prompt_template = $11, is_cross_margin = $12, kline_intervals = $13,
+			use_coin_pool = $14, use_oi_top = $15, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $16 AND user_id = $17
 	`, trader.Name, trader.AIModelID, trader.ExchangeID, trader.InitialBalance,
 		trader.ScanIntervalMinutes, trader.BTCETHLeverage, trader.AltcoinLeverage,
 		trader.TradingSymbols, trader.CustomPrompt, trader.OverrideBasePrompt,
-		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.KlineIntervals, trader.ID, trader.UserID)
+		trader.SystemPromptTemplate, trader.IsCrossMargin, trader.KlineIntervals,
+		trader.UseCoinPool, trader.UseOITop, trader.ID, trader.UserID)
 	return err
 }
 

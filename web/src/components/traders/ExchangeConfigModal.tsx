@@ -15,8 +15,14 @@ import { BookOpen, Trash2, HelpCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Tooltip } from './Tooltip'
 import { getShortName } from './utils'
-import { getAgentWallet, type AgentWallet } from '../../lib/agentWalletBackend'
-import { useAccount } from 'wagmi'
+import { getAgentWallet, createAgentWallet, authorizeAgent, confirmBuilderFee, verifyAgentAuthorization, type AgentWallet } from '../../lib/agentWalletBackend'
+import { useAccount, useWalletClient } from 'wagmi'
+import { signApproveAgent } from '../../lib/hyperliquidApproveAgent'
+import { approveHyperliquidBuilderFee } from '../../lib/hyperliquidBuilderFee'
+import { ExternalLink } from 'lucide-react'
+
+// NOFX Builder Address
+const BUILDER_ADDRESS = '0x891dc6f05ad47a3c1a05da55e7a7517971faaf0d'
 
 interface ExchangeConfigModalProps {
   allExchanges: Exchange[]
@@ -44,7 +50,8 @@ export function ExchangeConfigModal({
   onClose,
   language,
 }: ExchangeConfigModalProps) {
-  const { address } = useAccount()
+  const { address, isConnected } = useAccount()
+  const { data: walletClient } = useWalletClient()
 
   const [selectedExchangeId, setSelectedExchangeId] = useState(
     editingExchangeId || ''
@@ -75,6 +82,11 @@ export function ExchangeConfigModal({
   const [backendAgentWallet, setBackendAgentWallet] =
     useState<AgentWallet | null>(null)
   const [loadingAgentWallet, setLoadingAgentWallet] = useState(false)
+  const [authorizingAgent, setAuthorizingAgent] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(false)
+  const [regeneratingWallet, setRegeneratingWallet] = useState(false)
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [authInvalid, setAuthInvalid] = useState(false) // 授权已失效的标记
 
   // 安全输入状态
   const [secureInputTarget, setSecureInputTarget] = useState<
@@ -120,8 +132,9 @@ export function ExchangeConfigModal({
   }, [selectedExchangeId])
 
   // 加载后端 Agent Wallet（当选择 Hyperliquid 且连接了钱包时）
+  // 无论是创建还是编辑模式都需要加载
   useEffect(() => {
-    if (selectedExchangeId === 'hyperliquid' && address && !editingExchangeId) {
+    if (selectedExchangeId === 'hyperliquid' && address) {
       setLoadingAgentWallet(true)
       getAgentWallet(address)
         .then((response) => {
@@ -142,7 +155,7 @@ export function ExchangeConfigModal({
           setLoadingAgentWallet(false)
         })
     }
-  }, [selectedExchangeId, address, editingExchangeId])
+  }, [selectedExchangeId, address])
 
   const handleCopyIP = async (ip: string) => {
     try {
@@ -182,6 +195,191 @@ export function ExchangeConfigModal({
       toast.error(
         t('copyIPFailed', language) || `复制失败: ${ip}\n请手动复制此IP地址`
       )
+    }
+  }
+
+  // 刷新 Agent Wallet 授权状态
+  const handleRefreshAuthStatus = async () => {
+    if (!address || !backendAgentWallet) return
+
+    setCheckingAuth(true)
+    try {
+      const result = await verifyAgentAuthorization(address)
+      if (result.success) {
+        // 检查授权是否有效
+        if (!result.authorized) {
+          setAuthInvalid(true)
+          toast.warning(
+            language === 'zh'
+              ? '授权已失效！可能已在 Hyperliquid 网站移除。请重新生成 Agent Wallet。'
+              : 'Authorization invalid! May have been removed on Hyperliquid. Please regenerate Agent Wallet.'
+          )
+        } else {
+          setAuthInvalid(false)
+          toast.success(language === 'zh' ? '授权状态有效' : 'Authorization is valid')
+        }
+        // 重新获取 Agent Wallet 信息
+        const response = await getAgentWallet(address)
+        if (response.success && response.data) {
+          setBackendAgentWallet(response.data)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check authorization:', err)
+      toast.error(language === 'zh' ? '检查授权状态失败' : 'Failed to check authorization')
+    } finally {
+      setCheckingAuth(false)
+    }
+  }
+
+  // 重新生成 Agent Wallet（新地址、新私钥）
+  const handleRegenerateAgentWallet = async () => {
+    if (!address || !isConnected || !walletClient) {
+      toast.error(language === 'zh' ? '请先连接钱包' : 'Please connect wallet first')
+      return
+    }
+
+    setRegeneratingWallet(true)
+    try {
+      // 步骤 1: 创建新的 Agent Wallet（强制重新生成）
+      toast.info(language === 'zh' ? '正在生成新的 Agent Wallet...' : 'Creating new Agent Wallet...')
+      const createResponse = await createAgentWallet(address, 'Mainnet', true) // regenerate=true
+
+      if (!createResponse.success) {
+        throw new Error(createResponse.message || 'Failed to create agent wallet')
+      }
+
+      // 等待数据库事务完成
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      // 重新获取新的 Agent Wallet
+      const response = await getAgentWallet(address)
+      if (!response.success || !response.data) {
+        throw new Error('Failed to load new agent wallet')
+      }
+
+      const newAgentWallet = response.data
+      setBackendAgentWallet(newAgentWallet)
+
+      // 步骤 2: 立即授权新的 Agent Wallet
+      toast.info(language === 'zh' ? '请在钱包中签名授权...' : 'Please sign in wallet...')
+
+      const { signature, signatureHex, nonce } = await signApproveAgent(
+        walletClient,
+        {
+          agentAddress: newAgentWallet.agent_address,
+          agentName: 'NOFX',
+          hyperliquidChain: (newAgentWallet.hyperliquid_chain || 'Mainnet') as 'Mainnet' | 'Testnet',
+        }
+      )
+
+      const authResponse = await authorizeAgent({
+        main_wallet: address,
+        signature: signatureHex,
+        agent_name: 'NOFX',
+        nonce,
+        signature_rsv: signature,
+      })
+
+      if (!authResponse.success) {
+        throw new Error(authResponse.message || 'Authorization failed')
+      }
+
+      // 步骤 3: 完成配置
+      toast.info(language === 'zh' ? '请签名完成配置...' : 'Please sign to complete setup...')
+
+      const builderFeeResult = await approveHyperliquidBuilderFee(
+        walletClient,
+        {
+          builderAddress: BUILDER_ADDRESS,
+          maxFeeRate: 100,
+          hyperliquidChain: (newAgentWallet.hyperliquid_chain || 'Mainnet') as 'Mainnet' | 'Testnet',
+        }
+      )
+
+      if (builderFeeResult.success) {
+        await confirmBuilderFee(address, 100)
+      }
+
+      // 刷新状态
+      const refreshed = await getAgentWallet(address)
+      if (refreshed.success && refreshed.data) {
+        setBackendAgentWallet(refreshed.data)
+      }
+
+      setAuthInvalid(false)
+      setShowRegenerateConfirm(false)
+      toast.success(language === 'zh' ? '新 Agent Wallet 已创建并授权成功！' : 'New Agent Wallet created and authorized!')
+    } catch (err: any) {
+      console.error('Regenerate agent wallet failed:', err)
+      toast.error(err.message || (language === 'zh' ? '重新生成失败' : 'Regeneration failed'))
+    } finally {
+      setRegeneratingWallet(false)
+    }
+  }
+
+  // 在 Modal 中重新授权 Agent Wallet
+  const handleReauthorizeAgent = async () => {
+    if (!address || !isConnected || !walletClient || !backendAgentWallet) {
+      toast.error(language === 'zh' ? '请先连接钱包' : 'Please connect wallet first')
+      return
+    }
+
+    setAuthorizingAgent(true)
+    try {
+      // 步骤 1: 签名 ApproveAgent 消息
+      toast.info(language === 'zh' ? '请在钱包中签名授权...' : 'Please sign in wallet...')
+
+      const { signature, signatureHex, nonce } = await signApproveAgent(
+        walletClient,
+        {
+          agentAddress: backendAgentWallet.agent_address,
+          agentName: 'NOFX',
+          hyperliquidChain: (backendAgentWallet.hyperliquid_chain || 'Mainnet') as 'Mainnet' | 'Testnet',
+        }
+      )
+
+      // 提交到后端
+      const response = await authorizeAgent({
+        main_wallet: address,
+        signature: signatureHex,
+        agent_name: 'NOFX',
+        nonce,
+        signature_rsv: signature,
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || 'Authorization failed')
+      }
+
+      // 步骤 2: 完成配置
+      toast.info(language === 'zh' ? '请签名完成配置...' : 'Please sign to complete setup...')
+
+      const builderFeeResult = await approveHyperliquidBuilderFee(
+        walletClient,
+        {
+          builderAddress: BUILDER_ADDRESS,
+          maxFeeRate: 100,
+          hyperliquidChain: (backendAgentWallet.hyperliquid_chain || 'Mainnet') as 'Mainnet' | 'Testnet',
+        }
+      )
+
+      if (builderFeeResult.success) {
+        await confirmBuilderFee(address, 100)
+      }
+
+      // 刷新状态
+      const refreshed = await getAgentWallet(address)
+      if (refreshed.success && refreshed.data) {
+        setBackendAgentWallet(refreshed.data)
+      }
+
+      toast.success(language === 'zh' ? '授权成功！' : 'Authorization successful!')
+    } catch (err: any) {
+      console.error('Authorization failed:', err)
+      toast.error(err.message || (language === 'zh' ? '授权失败' : 'Authorization failed'))
+    } finally {
+      setAuthorizingAgent(false)
     }
   }
 
@@ -894,7 +1092,133 @@ export function ExchangeConfigModal({
                             </div>
                           </div>
 
-                          {/* 如果状态不是 ACTIVE，显示授权提示 */}
+                          {/* 授权失效警告 */}
+                          {authInvalid && (
+                            <div
+                              className="mt-3 p-3 rounded"
+                              style={{
+                                background: 'rgba(246, 70, 93, 0.1)',
+                                border: '1px solid rgba(246, 70, 93, 0.3)',
+                              }}
+                            >
+                              <p className="text-xs font-semibold mb-2" style={{ color: '#F6465D' }}>
+                                ⚠️ {language === 'zh' ? '授权已失效' : 'Authorization Invalid'}
+                              </p>
+                              <p className="text-xs mb-3" style={{ color: '#848E9C' }}>
+                                {language === 'zh'
+                                  ? '检测到您的 Agent Wallet 授权已在 Hyperliquid 上被移除。当前的 Agent Wallet 无法使用，需要生成新的 Agent Wallet 并重新授权。'
+                                  : 'Your Agent Wallet authorization has been removed on Hyperliquid. The current Agent Wallet cannot be used. You need to generate a new Agent Wallet and re-authorize.'}
+                              </p>
+                              {!showRegenerateConfirm ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowRegenerateConfirm(true)}
+                                  className="px-3 py-1.5 rounded text-xs font-semibold"
+                                  style={{
+                                    background: '#F6465D',
+                                    color: '#FFF',
+                                  }}
+                                >
+                                  🔄 {language === 'zh' ? '重新生成 Agent Wallet' : 'Regenerate Agent Wallet'}
+                                </button>
+                              ) : (
+                                <div className="space-y-2">
+                                  <p className="text-xs" style={{ color: '#F0B90B' }}>
+                                    {language === 'zh'
+                                      ? '确认要生成新的 Agent Wallet 吗？这将创建新的地址和私钥，并需要重新签名授权（2次签名）。'
+                                      : 'Confirm generating a new Agent Wallet? This will create a new address and private key, requiring re-authorization (2 signatures).'}
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={handleRegenerateAgentWallet}
+                                      disabled={regeneratingWallet}
+                                      className="px-3 py-1.5 rounded text-xs font-semibold"
+                                      style={{
+                                        background: regeneratingWallet ? '#666' : '#F6465D',
+                                        color: '#FFF',
+                                      }}
+                                    >
+                                      {regeneratingWallet
+                                        ? (language === 'zh' ? '生成中...' : 'Generating...')
+                                        : (language === 'zh' ? '确认生成' : 'Confirm')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowRegenerateConfirm(false)}
+                                      disabled={regeneratingWallet}
+                                      className="px-3 py-1.5 rounded text-xs font-semibold"
+                                      style={{
+                                        background: '#2B3139',
+                                        color: '#848E9C',
+                                      }}
+                                    >
+                                      {language === 'zh' ? '取消' : 'Cancel'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* 操作按钮区 */}
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {/* 刷新授权状态 */}
+                            <button
+                              type="button"
+                              onClick={handleRefreshAuthStatus}
+                              disabled={checkingAuth}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-all"
+                              style={{
+                                background: '#2B3139',
+                                color: '#EAECEF',
+                                border: '1px solid #3B4149',
+                              }}
+                            >
+                              <RefreshCw size={12} className={checkingAuth ? 'animate-spin' : ''} />
+                              {checkingAuth
+                                ? (language === 'zh' ? '检查中...' : 'Checking...')
+                                : (language === 'zh' ? '检查授权' : 'Check Auth')}
+                            </button>
+
+                            {/* 重新授权 - 仅在授权未失效时显示 */}
+                            {!authInvalid && (
+                              <button
+                                type="button"
+                                onClick={handleReauthorizeAgent}
+                                disabled={authorizingAgent || !isConnected}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-all"
+                                style={{
+                                  background: backendAgentWallet.status === 'ACTIVE' ? '#2B3139' : '#F0B90B',
+                                  color: backendAgentWallet.status === 'ACTIVE' ? '#EAECEF' : '#000',
+                                  border: backendAgentWallet.status === 'ACTIVE' ? '1px solid #3B4149' : 'none',
+                                }}
+                              >
+                                🔐 {authorizingAgent
+                                  ? (language === 'zh' ? '授权中...' : 'Authorizing...')
+                                  : (language === 'zh' ? '重新授权' : 'Re-authorize')}
+                              </button>
+                            )}
+
+                            {/* Hyperliquid API 管理连结 */}
+                            <a
+                              href="https://app.hyperliquid.xyz/API"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-all"
+                              style={{
+                                background: 'transparent',
+                                color: '#848E9C',
+                                border: '1px solid #3B4149',
+                                textDecoration: 'none',
+                              }}
+                            >
+                              <ExternalLink size={12} />
+                              {language === 'zh' ? 'API 管理' : 'API Management'}
+                            </a>
+                          </div>
+
+                          {/* 如果状态不是 ACTIVE，显示警告提示 */}
                           {backendAgentWallet.status !== 'ACTIVE' && (
                             <div
                               className="mt-3 p-3 rounded"
@@ -904,43 +1228,11 @@ export function ExchangeConfigModal({
                               }}
                             >
                               <p
-                                className="text-xs mb-2"
+                                className="text-xs"
                                 style={{ color: '#F0B90B' }}
                               >
-                                <strong>
-                                  ⚠️ {t('authorizationRequired', language)}
-                                </strong>
+                                ⚠️ {t('authorizationRequired', language)} - {t('authorizationRequiredDesc', language)}
                               </p>
-                              <p
-                                className="text-xs mb-3"
-                                style={{ color: '#848E9C' }}
-                              >
-                                {t('authorizationRequiredDesc', language)}
-                              </p>
-                              <a
-                                href="/agent-wallet-backend"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded text-xs font-semibold transition-all"
-                                style={{
-                                  background: '#F0B90B',
-                                  color: '#000',
-                                  textDecoration: 'none',
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.transform =
-                                    'translateY(-1px)'
-                                  e.currentTarget.style.boxShadow =
-                                    '0 4px 12px rgba(240, 185, 11, 0.3)'
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.transform =
-                                    'translateY(0)'
-                                  e.currentTarget.style.boxShadow = 'none'
-                                }}
-                              >
-                                🔐 {t('goToAuthorizeAgentWallet', language)}
-                              </a>
                             </div>
                           )}
                         </div>
@@ -1004,7 +1296,8 @@ export function ExchangeConfigModal({
                     !passphrase.trim())) ||
                 (selectedExchange.id === 'hyperliquid' &&
                   (!backendAgentWallet ||
-                    backendAgentWallet.status !== 'ACTIVE')) || // 验证后端 Agent Wallet 存在且已授权
+                    backendAgentWallet.status !== 'ACTIVE' ||
+                    authInvalid)) || // 验证后端 Agent Wallet 存在且已授权，且授权未失效
                 (selectedExchange.id === 'aster' &&
                   (!asterUser.trim() ||
                     !asterSigner.trim() ||

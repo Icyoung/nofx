@@ -1216,6 +1216,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
           availableExchanges={enabledExchanges}
           onSave={handleCreateTrader}
           onClose={() => setShowCreateModal(false)}
+          userSignalSource={userSignalSource}
+          onOpenSignalSourceModal={() => setShowSignalSourceModal(true)}
         />
       )}
 
@@ -1232,6 +1234,8 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
             setShowEditModal(false)
             setEditingTrader(null)
           }}
+          userSignalSource={userSignalSource}
+          onOpenSignalSourceModal={() => setShowSignalSourceModal(true)}
         />
       )}
 

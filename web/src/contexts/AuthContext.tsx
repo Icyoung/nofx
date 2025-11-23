@@ -139,15 +139,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Map HTTP status codes to error codes
-        const errorCode =
+        const errorCode: 'INVALID_CREDENTIALS' | 'SERVER_ERROR' =
           response.status === 401 ? 'INVALID_CREDENTIALS' : 'SERVER_ERROR'
         return { success: false, message: data.error, errorCode }
       }
     } catch (error) {
-      return { success: false, errorCode: 'NETWORK_ERROR' }
+      return { success: false, errorCode: 'NETWORK_ERROR' as const }
     }
 
-    return { success: false, errorCode: 'UNKNOWN_ERROR' }
+    return { success: false, errorCode: 'UNKNOWN_ERROR' as const }
   }
 
   const loginAdmin = async (password: string) => {
