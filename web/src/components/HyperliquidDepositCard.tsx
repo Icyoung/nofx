@@ -12,7 +12,12 @@
  */
 
 import { useState, useEffect } from 'react'
-import { ArrowDownCircle, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react'
+import {
+  ArrowDownCircle,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+} from 'lucide-react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { useSwitchChain } from 'wagmi'
 import {
@@ -36,7 +41,7 @@ export function HyperliquidDepositCard({
   const { language } = useLanguage()
   const { address, isConnected, chain } = useAccount()
   const { data: walletClient } = useWalletClient()
-  const { switchChain } = useSwitchChain()
+  const { switchChain, isPending: isSwitching } = useSwitchChain()
 
   const [amount, setAmount] = useState('')
   const [balance, setBalance] = useState<number | null>(null)
@@ -49,7 +54,8 @@ export function HyperliquidDepositCard({
 
   const minDeposit = getMinimumDeposit()
   const requiredChain = getRequiredArbitrumChain(hyperliquidChain)
-  const isCorrectNetwork = chain && isCorrectArbitrumNetwork(chain.id, hyperliquidChain)
+  const isCorrectNetwork =
+    chain && isCorrectArbitrumNetwork(chain.id, hyperliquidChain)
 
   // Load balance
   useEffect(() => {
@@ -63,7 +69,10 @@ export function HyperliquidDepositCard({
 
     try {
       setBalanceLoading(true)
-      const result = await getArbitrumUSDCBalance(walletClient, hyperliquidChain)
+      const result = await getArbitrumUSDCBalance(
+        walletClient,
+        hyperliquidChain
+      )
 
       if (result.success && result.balance !== undefined) {
         setBalance(result.balance)
@@ -85,9 +94,10 @@ export function HyperliquidDepositCard({
     if (isNaN(amountNum) || amountNum < minDeposit) {
       setStatus({
         type: 'error',
-        message: language === 'zh'
-          ? `最小存款金額為 ${minDeposit} USDC`
-          : `Minimum deposit is ${minDeposit} USDC`,
+        message:
+          language === 'zh'
+            ? `最小存款金額為 ${minDeposit} USDC`
+            : `Minimum deposit is ${minDeposit} USDC`,
       })
       return
     }
@@ -178,7 +188,9 @@ export function HyperliquidDepositCard({
             className="flex items-center gap-1 px-2 py-1 rounded text-xs"
             style={{ color: '#848E9C' }}
           >
-            <RefreshCw className={`h-3 w-3 ${balanceLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-3 w-3 ${balanceLoading ? 'animate-spin' : ''}`}
+            />
           </button>
         )}
       </div>
@@ -193,7 +205,9 @@ export function HyperliquidDepositCard({
           }}
         >
           <p className="text-sm mb-2" style={{ color: '#F6465D' }}>
-            <strong>⚠️ {language === 'zh' ? '網絡錯誤' : 'Wrong Network'}</strong>
+            <strong>
+              ⚠️ {language === 'zh' ? '網絡錯誤' : 'Wrong Network'}
+            </strong>
           </p>
           <p className="text-sm mb-3" style={{ color: '#848E9C' }}>
             {language === 'zh'
@@ -202,13 +216,23 @@ export function HyperliquidDepositCard({
           </p>
           <button
             onClick={handleSwitchNetwork}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            disabled={isSwitching}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-70"
             style={{
-              background: 'linear-gradient(135deg, #F0B90B 0%, #d9a309 100%)',
+              background: isSwitching
+                ? '#848E9C'
+                : 'linear-gradient(135deg, #F0B90B 0%, #d9a309 100%)',
               color: '#000000',
             }}
           >
-            {language === 'zh' ? `切換到 ${requiredChain.name}` : `Switch to ${requiredChain.name}`}
+            {isSwitching && <RefreshCw className="h-4 w-4 animate-spin" />}
+            {isSwitching
+              ? language === 'zh'
+                ? '請在錢包中確認...'
+                : 'Confirm in wallet...'
+              : language === 'zh'
+                ? `切換到 ${requiredChain.name}`
+                : `Switch to ${requiredChain.name}`}
           </button>
         </div>
       )}
@@ -218,12 +242,18 @@ export function HyperliquidDepositCard({
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm" style={{ color: '#848E9C' }}>
-              {language === 'zh' ? 'Arbitrum USDC 餘額' : 'Arbitrum USDC Balance'}
+              {language === 'zh'
+                ? 'Arbitrum USDC 餘額'
+                : 'Arbitrum USDC Balance'}
             </span>
             <span
               className="text-sm font-medium"
               style={{
-                color: balanceLoading ? '#848E9C' : balance !== null ? '#0ECB81' : '#F6465D',
+                color: balanceLoading
+                  ? '#848E9C'
+                  : balance !== null
+                    ? '#0ECB81'
+                    : '#F6465D',
               }}
             >
               {balanceLoading ? (
@@ -233,8 +263,10 @@ export function HyperliquidDepositCard({
                 </span>
               ) : balance !== null ? (
                 `${balance.toFixed(2)} USDC`
+              ) : language === 'zh' ? (
+                '查詢失敗'
               ) : (
-                language === 'zh' ? '查詢失敗' : 'Failed to load'
+                'Failed to load'
               )}
             </span>
           </div>
@@ -306,7 +338,9 @@ export function HyperliquidDepositCard({
           ) : (
             <>
               <ArrowDownCircle className="h-4 w-4" />
-              {language === 'zh' ? '存入到 Hyperliquid' : 'Deposit to Hyperliquid'}
+              {language === 'zh'
+                ? '存入到 Hyperliquid'
+                : 'Deposit to Hyperliquid'}
             </>
           )}
         </button>
@@ -328,9 +362,15 @@ export function HyperliquidDepositCard({
           }}
         >
           {status.type === 'success' ? (
-            <CheckCircle className="h-4 w-4 mt-0.5" style={{ color: '#0ECB81' }} />
+            <CheckCircle
+              className="h-4 w-4 mt-0.5"
+              style={{ color: '#0ECB81' }}
+            />
           ) : (
-            <AlertCircle className="h-4 w-4 mt-0.5" style={{ color: '#F6465D' }} />
+            <AlertCircle
+              className="h-4 w-4 mt-0.5"
+              style={{ color: '#F6465D' }}
+            />
           )}
           <p
             className="text-sm"
@@ -354,8 +394,8 @@ export function HyperliquidDepositCard({
             </>
           ) : (
             <>
-              💡 <strong>Info:</strong> USDC will be bridged from your Arbitrum wallet to
-              Hyperliquid. Deposits arrive within 1 minute.
+              💡 <strong>Info:</strong> USDC will be bridged from your Arbitrum
+              wallet to Hyperliquid. Deposits arrive within 1 minute.
             </>
           )}
         </p>
