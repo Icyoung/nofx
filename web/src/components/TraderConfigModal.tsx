@@ -84,7 +84,14 @@ export function TraderConfigModal({
 
   useEffect(() => {
     if (traderData) {
-      setFormData(traderData)
+      // 確保編輯時 initial_balance 有合理的默認值
+      const dataWithBalance = {
+        ...traderData,
+        initial_balance: traderData.initial_balance && traderData.initial_balance > 0
+          ? traderData.initial_balance
+          : 1000, // 如果為 0 或未定義，使用默認值
+      }
+      setFormData(dataWithBalance)
       // 设置已选择的币种
       if (traderData.trading_symbols) {
         const coins = traderData.trading_symbols

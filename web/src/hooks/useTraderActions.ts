@@ -109,6 +109,7 @@ export function useTraderActions({
         loading: '正在创建…',
         success: '创建成功',
         error: '创建失败',
+        id: 'create-trader',
       })
       setShowCreateModal(false)
       // Immediately refresh traders list for better UX
@@ -193,6 +194,7 @@ export function useTraderActions({
         loading: '正在保存…',
         success: '保存成功',
         error: '保存失败',
+        id: `save-trader-${editingTrader.trader_id}`,
       })
       setShowEditModal(false)
       setEditingTrader(null)
@@ -215,6 +217,7 @@ export function useTraderActions({
         loading: '正在删除…',
         success: '删除成功',
         error: '删除失败',
+        id: `delete-trader-${traderId}`,
       })
 
       // Immediately refresh traders list for better UX
@@ -232,12 +235,14 @@ export function useTraderActions({
           loading: '正在停止…',
           success: '已停止',
           error: '停止失败',
+          id: `stop-trader-${traderId}`,
         })
       } else {
         await toast.promise(api.startTrader(traderId), {
           loading: '正在启动…',
           success: '已启动',
           error: '启动失败',
+          id: `start-trader-${traderId}`,
         })
       }
 
@@ -645,6 +650,7 @@ export function useTraderActions({
         loading: '正在保存…',
         success: '保存成功',
         error: '保存失败',
+        id: 'save-signal-source',
       })
       setUserSignalSource({ coinPoolUrl, oiTopUrl })
       setShowSignalSourceModal(false)

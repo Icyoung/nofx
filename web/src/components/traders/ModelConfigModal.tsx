@@ -48,9 +48,29 @@ export function ModelConfigModal({
     }
   }, [editingModelId, selectedModel])
 
+  // 驗證 URL 格式
+  const isValidUrl = (url: string): boolean => {
+    const trimmed = url.trim()
+    if (!trimmed) return true // 空值是允許的
+    try {
+      new URL(trimmed)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const [urlError, setUrlError] = useState('')
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedModelId || !apiKey.trim()) return
+
+    // 驗證 URL 格式
+    if (baseUrl.trim() && !isValidUrl(baseUrl)) {
+      setUrlError(t('invalidUrlFormat', language))
+      return
+    }
 
     onSave(
       selectedModelId,
@@ -58,6 +78,12 @@ export function ModelConfigModal({
       baseUrl.trim() || undefined,
       modelName.trim() || undefined
     )
+  }
+
+  // 清除錯誤當 URL 改變時
+  const handleBaseUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBaseUrl(e.target.value)
+    if (urlError) setUrlError('')
   }
 
   // 可选择的模型列表(所有支持的模型)
@@ -199,18 +225,24 @@ export function ModelConfigModal({
                   <input
                     type="url"
                     value={baseUrl}
-                    onChange={(e) => setBaseUrl(e.target.value)}
+                    onChange={handleBaseUrlChange}
                     placeholder={t('customBaseURLPlaceholder', language)}
                     className="w-full px-3 py-2 rounded"
                     style={{
                       background: '#0B0E11',
-                      border: '1px solid #2B3139',
+                      border: urlError ? '1px solid #F6465D' : '1px solid #2B3139',
                       color: '#EAECEF',
                     }}
                   />
-                  <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                    {t('leaveBlankForDefault', language)}
-                  </div>
+                  {urlError ? (
+                    <div className="text-xs mt-1" style={{ color: '#F6465D' }}>
+                      {urlError}
+                    </div>
+                  ) : (
+                    <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
+                      {t('leaveBlankForDefault', language)}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -218,13 +250,13 @@ export function ModelConfigModal({
                     className="block text-sm font-semibold mb-2"
                     style={{ color: '#EAECEF' }}
                   >
-                    Model Name (可选)
+                    {t('customModelName', language)}
                   </label>
                   <input
                     type="text"
                     value={modelName}
                     onChange={(e) => setModelName(e.target.value)}
-                    placeholder="例如: deepseek-chat, qwen3-max, gpt-5"
+                    placeholder={t('customModelNamePlaceholder', language)}
                     className="w-full px-3 py-2 rounded"
                     style={{
                       background: '#0B0E11',
@@ -233,7 +265,7 @@ export function ModelConfigModal({
                     }}
                   />
                   <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
-                    留空使用默认模型名称
+                    {t('leaveBlankForDefaultModel', language)}
                   </div>
                 </div>
 

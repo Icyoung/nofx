@@ -402,6 +402,10 @@ export const translations = {
     customBaseURLPlaceholder:
       'Custom API base URL, e.g.: https://api.openai.com/v1',
     leaveBlankForDefault: 'Leave blank to use default API address',
+    invalidUrlFormat: 'Invalid URL format, please enter a valid URL',
+    customModelName: 'Model Name (Optional)',
+    customModelNamePlaceholder: 'e.g.: deepseek-chat, qwen3-max, gpt-5',
+    leaveBlankForDefaultModel: 'Leave blank to use default model name',
     modelConfigInfo1:
       '• API Key will be encrypted and stored, please ensure it is valid',
     modelConfigInfo2: '• Base URL is used for custom API server address',
@@ -1369,6 +1373,10 @@ export const translations = {
     customBaseURL: 'Base URL (可选)',
     customBaseURLPlaceholder: '自定义API基础URL，如: https://api.openai.com/v1',
     leaveBlankForDefault: '留空则使用默认API地址',
+    invalidUrlFormat: 'URL格式无效，请输入正确的URL',
+    customModelName: 'Model Name (可选)',
+    customModelNamePlaceholder: '例如: deepseek-chat, qwen3-max, gpt-5',
+    leaveBlankForDefaultModel: '留空使用默认模型名称',
     modelConfigInfo1: '• API Key将被加密存储，请确保密钥有效',
     modelConfigInfo2: '• Base URL用于自定义API服务器地址',
     modelConfigInfo3: '• 删除配置后，使用此模型的交易员将无法正常工作',
