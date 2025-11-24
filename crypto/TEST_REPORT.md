@@ -43,7 +43,7 @@
 #### TestCryptoServiceEnvLoading
 | 子測試 | 結果 | 說明 |
 |--------|------|------|
-| 缺少NOFX_RSA_PRIVATE_KEY | PASS | 正確返回錯誤 |
+| 缺少NOFX_RSA_PRIVATE_KEY_PATH | PASS | 正確返回錯誤 |
 
 ### 2. 加密功能測試 (encryption_test.go)
 
@@ -83,9 +83,9 @@ export NOFX_MASTER_KEY=$(openssl rand -base64 32)
 openssl genrsa -out /tmp/rsa_key 4096
 openssl rsa -in /tmp/rsa_key -pubout -out /tmp/rsa_key.pub
 
-# 3. 設置 RSA 環境變數 (macOS)
-export NOFX_RSA_PRIVATE_KEY=$(base64 /tmp/rsa_key)
-export NOFX_RSA_PUBLIC_KEY=$(base64 /tmp/rsa_key.pub)
+# 3. 設置 RSA 環境變數路徑
+export NOFX_RSA_PRIVATE_KEY_PATH=/tmp/rsa_key
+export NOFX_RSA_PUBLIC_KEY_PATH=/tmp/rsa_key.pub
 
 # 4. 運行測試
 go test -v ./crypto/...
@@ -109,12 +109,11 @@ rm /tmp/rsa_key /tmp/rsa_key.pub
 
 1. **密鑰來源變更**: 從文件掛載改為環境變數
    - `NOFX_MASTER_KEY`: AES-256 主密鑰 (Base64 編碼)
-   - `NOFX_RSA_PRIVATE_KEY`: RSA 私鑰 (Base64 編碼 PEM)
-   - `NOFX_RSA_PUBLIC_KEY`: RSA 公鑰 (Base64 編碼 PEM)
+   - `NOFX_RSA_PRIVATE_KEY_PATH`: RSA 私鑰路徑 (PEM)
+   - `NOFX_RSA_PUBLIC_KEY_PATH`: RSA 公鑰路徑 (PEM)
 
-2. **移除文件掛載**:
-   - 移除 `./secrets:/app/secrets:ro`
-   - 移除 `./.secrets:/app/.secrets`
+2. **文件掛載策略**:
+   - 使用 `./secrets:/app/secrets:ro` 供容器讀取 PEM 文件
 
 ### 加密算法
 

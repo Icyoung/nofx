@@ -74,50 +74,43 @@ func newEncryptionManager() (*EncryptionManager, error) {
 const (
 	rsaKeySize = 4096
 	// 注意：所有密鑰現在都從環境變數加載，不再使用文件
-	// RSA: NOFX_RSA_PRIVATE_KEY, NOFX_RSA_PUBLIC_KEY (base64 encoded PEM)
+	// RSA: NOFX_RSA_PRIVATE_KEY_PATH, NOFX_RSA_PUBLIC_KEY_PATH (PEM 路徑)
 	// Master Key: NOFX_MASTER_KEY (base64 encoded 32-byte key)
 )
 
 // loadOrGenerateRSAKeyPair 加載 RSA 密鑰對（僅從環境變數加載）
 func (em *EncryptionManager) loadOrGenerateRSAKeyPair() error {
-	privateKeyEnv := os.Getenv("NOFX_RSA_PRIVATE_KEY")
-	publicKeyEnv := os.Getenv("NOFX_RSA_PUBLIC_KEY")
-
-	if privateKeyEnv == "" || publicKeyEnv == "" {
-		log.Println("❌ 嚴重錯誤：RSA 密鑰環境變數未設置")
+	privateKeyPEM, err := loadRSAPrivateKeyBytes()
+	if err != nil {
+		log.Println("❌ 嚴重錯誤：RSA 私鑰無法加載")
 		log.Println("")
 		log.Println("🔧 請設置以下環境變數：")
-		log.Println("   NOFX_RSA_PRIVATE_KEY=<base64 encoded PEM>")
-		log.Println("   NOFX_RSA_PUBLIC_KEY=<base64 encoded PEM>")
+		log.Println("   NOFX_RSA_PRIVATE_KEY_PATH=<path to PEM file>")
+		log.Println("   NOFX_RSA_PUBLIC_KEY_PATH=<path to PEM file>")
 		log.Println("")
 		log.Println("📝 生成方法：")
-		log.Println("   # 如果還沒有密鑰，先生成：")
-		log.Println("   openssl genrsa -out rsa_key 4096")
-		log.Println("   openssl rsa -in rsa_key -pubout -out rsa_key.pub")
+		log.Println("   openssl genrsa -out secrets/rsa_private.pem 4096")
+		log.Println("   openssl rsa -in secrets/rsa_private.pem -pubout -out secrets/rsa_public.pem")
 		log.Println("")
-		log.Println("   # 轉換為 base64 並設置環境變數：")
-		log.Println("   export NOFX_RSA_PRIVATE_KEY=$(base64 -w0 rsa_key)")
-		log.Println("   export NOFX_RSA_PUBLIC_KEY=$(base64 -w0 rsa_key.pub)")
-		log.Println("")
-		return fmt.Errorf("RSA 密鑰環境變數未設置: NOFX_RSA_PRIVATE_KEY 和 NOFX_RSA_PUBLIC_KEY 必須設置")
+		return fmt.Errorf("RSA 私鑰加載失敗: %w", err)
 	}
 
-	return em.loadRSAKeyPairFromEnv(privateKeyEnv, publicKeyEnv)
+	publicKeyPEM, err := loadRSAPublicKeyBytes()
+	if err != nil {
+		log.Println("❌ 嚴重錯誤：RSA 公鑰無法加載")
+		log.Println("")
+		log.Println("🔧 請設置以下環境變數：")
+		log.Println("   NOFX_RSA_PRIVATE_KEY_PATH=<path to PEM file>")
+		log.Println("   NOFX_RSA_PUBLIC_KEY_PATH=<path to PEM file>")
+		log.Println("")
+		return fmt.Errorf("RSA 公鑰加載失敗: %w", err)
+	}
+
+	return em.loadRSAKeyPairFromPEM(privateKeyPEM, publicKeyPEM)
 }
 
-// loadRSAKeyPairFromEnv 從環境變數加載 RSA 密鑰對
-func (em *EncryptionManager) loadRSAKeyPairFromEnv(privateKeyB64, publicKeyB64 string) error {
-	// 解碼 base64
-	privateKeyPEM, err := base64.StdEncoding.DecodeString(privateKeyB64)
-	if err != nil {
-		return fmt.Errorf("解碼 RSA 私鑰失敗 (非有效 base64): %w", err)
-	}
-
-	publicKeyPEM, err := base64.StdEncoding.DecodeString(publicKeyB64)
-	if err != nil {
-		return fmt.Errorf("解碼 RSA 公鑰失敗 (非有效 base64): %w", err)
-	}
-
+// loadRSAKeyPairFromPEM 從 PEM 字節加載 RSA 密鑰對
+func (em *EncryptionManager) loadRSAKeyPairFromPEM(privateKeyPEM, publicKeyPEM []byte) error {
 	// 解析私鑰
 	privateKey, err := ParseRSAPrivateKeyFromPEM(privateKeyPEM)
 	if err != nil {
@@ -126,7 +119,7 @@ func (em *EncryptionManager) loadRSAKeyPairFromEnv(privateKeyB64, publicKeyB64 s
 	em.privateKey = privateKey
 	em.publicKeyPEM = string(publicKeyPEM)
 
-	log.Println("✅ RSA 密鑰對已從環境變數加載")
+	log.Println("✅ RSA 密鑰對已從配置加載")
 	return nil
 }
 

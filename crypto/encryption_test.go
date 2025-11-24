@@ -10,7 +10,11 @@ func skipIfNoEnvKeys(t *testing.T) {
 	if os.Getenv("NOFX_MASTER_KEY") == "" {
 		t.Skip("跳過：NOFX_MASTER_KEY 環境變數未設置")
 	}
-	if os.Getenv("NOFX_RSA_PRIVATE_KEY") == "" || os.Getenv("NOFX_RSA_PUBLIC_KEY") == "" {
+
+	hasRSAPriv := os.Getenv("NOFX_RSA_PRIVATE_KEY_PATH") != ""
+	hasRSAPub := os.Getenv("NOFX_RSA_PUBLIC_KEY_PATH") != ""
+
+	if !hasRSAPriv || !hasRSAPub {
 		t.Skip("跳過：RSA 密鑰環境變數未設置")
 	}
 }

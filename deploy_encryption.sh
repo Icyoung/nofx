@@ -4,6 +4,11 @@
 
 set -e  # 遇到錯誤立即退出
 
+# 路徑定義
+SECRETS_DIR="secrets"
+RSA_PRIVATE_PATH="$SECRETS_DIR/rsa_private.pem"
+RSA_PUBLIC_PATH="$SECRETS_DIR/rsa_public.pem"
+
 # 顏色定義
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -57,28 +62,18 @@ generate_master_key() {
 generate_rsa_keys() {
     log_info "生成 RSA-4096 密鑰對..."
 
-    # 創建臨時目錄
-    TEMP_DIR=$(mktemp -d)
+    mkdir -p "$SECRETS_DIR"
+    chmod 700 "$SECRETS_DIR"
 
     # 生成私鑰
-    openssl genrsa -out "$TEMP_DIR/rsa_key" 4096 2>/dev/null
+    openssl genrsa -out "$RSA_PRIVATE_PATH" 4096 2>/dev/null
+    chmod 600 "$RSA_PRIVATE_PATH"
 
     # 生成公鑰
-    openssl rsa -in "$TEMP_DIR/rsa_key" -pubout -out "$TEMP_DIR/rsa_key.pub" 2>/dev/null
+    openssl rsa -in "$RSA_PRIVATE_PATH" -pubout -out "$RSA_PUBLIC_PATH" 2>/dev/null
+    chmod 644 "$RSA_PUBLIC_PATH"
 
-    # 檢測是否是 macOS (macOS 的 base64 不需要 -w0)
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        RSA_PRIVATE_KEY=$(base64 < "$TEMP_DIR/rsa_key")
-        RSA_PUBLIC_KEY=$(base64 < "$TEMP_DIR/rsa_key.pub")
-    else
-        RSA_PRIVATE_KEY=$(base64 -w0 < "$TEMP_DIR/rsa_key")
-        RSA_PUBLIC_KEY=$(base64 -w0 < "$TEMP_DIR/rsa_key.pub")
-    fi
-
-    # 清理臨時文件
-    rm -rf "$TEMP_DIR"
-
-    log_success "RSA 密鑰對已生成"
+    log_success "RSA 密鑰對已生成 (${RSA_PRIVATE_PATH}, ${RSA_PUBLIC_PATH})"
 }
 
 # 檢查現有環境變數
@@ -92,13 +87,8 @@ check_existing_env() {
         has_existing=true
     fi
 
-    if [ -n "$NOFX_RSA_PRIVATE_KEY" ]; then
-        log_warning "NOFX_RSA_PRIVATE_KEY 已設置"
-        has_existing=true
-    fi
-
-    if [ -n "$NOFX_RSA_PUBLIC_KEY" ]; then
-        log_warning "NOFX_RSA_PUBLIC_KEY 已設置"
+    if [ -f "$RSA_PRIVATE_PATH" ] || [ -f "$RSA_PUBLIC_PATH" ]; then
+        log_warning "檢測到已有 RSA 密鑰文件 (${SECRETS_DIR})"
         has_existing=true
     fi
 
@@ -130,38 +120,25 @@ migrate_from_old_version() {
         migrated=true
     fi
 
-    # 檢查舊的 RSA 密鑰
+    # 檢查舊的 RSA 密鑰 (直接使用文件路徑)
     if [ -f "secrets/rsa_key" ] && [ -f "secrets/rsa_key.pub" ]; then
         log_warning "發現舊版本 RSA 密鑰: secrets/rsa_key"
-
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            RSA_PRIVATE_KEY=$(base64 < "secrets/rsa_key")
-            RSA_PUBLIC_KEY=$(base64 < "secrets/rsa_key.pub")
-        else
-            RSA_PRIVATE_KEY=$(base64 -w0 < "secrets/rsa_key")
-            RSA_PUBLIC_KEY=$(base64 -w0 < "secrets/rsa_key.pub")
-        fi
-
-        log_success "已從舊文件讀取 RSA 密鑰"
+        RSA_PRIVATE_PATH="secrets/rsa_key"
+        RSA_PUBLIC_PATH="secrets/rsa_key.pub"
+        log_success "已使用舊 RSA 密鑰文件"
         migrated=true
     fi
 
     # 檢查更舊的 RSA 密鑰路徑
     if [ -f ".secrets/rsa_private.pem" ] && [ -f ".secrets/rsa_public.pem" ]; then
         log_warning "發現舊版本 RSA 密鑰: .secrets/rsa_private.pem"
-
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            RSA_PRIVATE_KEY=$(base64 < ".secrets/rsa_private.pem")
-            RSA_PUBLIC_KEY=$(base64 < ".secrets/rsa_public.pem")
-        else
-            RSA_PRIVATE_KEY=$(base64 -w0 < ".secrets/rsa_private.pem")
-            RSA_PUBLIC_KEY=$(base64 -w0 < ".secrets/rsa_public.pem")
-        fi
-
-        log_success "已從舊文件讀取 RSA 密鑰"
+        RSA_PRIVATE_PATH=".secrets/rsa_private.pem"
+        RSA_PUBLIC_PATH=".secrets/rsa_public.pem"
+        log_success "已使用舊 RSA 密鑰文件"
         migrated=true
     fi
 
+    # 如果存在舊的 base64 環境變數，轉存為文件
     if [ "$migrated" = true ]; then
         echo ""
         log_success "已從舊版本遷移密鑰"
@@ -182,10 +159,15 @@ write_env_file() {
         log_success "已備份現有 .env 文件"
     fi
 
+    local rsa_priv_path="${NOFX_RSA_PRIVATE_KEY_PATH:-$RSA_PRIVATE_PATH}"
+    local rsa_pub_path="${NOFX_RSA_PUBLIC_KEY_PATH:-$RSA_PUBLIC_PATH}"
+
     # 檢查是否已有這些變數
     if [ -f ".env" ]; then
         # 移除舊的密鑰配置
-        grep -v "^NOFX_MASTER_KEY=" .env | grep -v "^NOFX_RSA_PRIVATE_KEY=" | grep -v "^NOFX_RSA_PUBLIC_KEY=" > .env.tmp || true
+        grep -v "^NOFX_MASTER_KEY=" .env \
+            | grep -v "^NOFX_RSA_PRIVATE_KEY_PATH=" \
+            | grep -v "^NOFX_RSA_PUBLIC_KEY_PATH=" > .env.tmp || true
         mv .env.tmp .env
     fi
 
@@ -196,8 +178,8 @@ write_env_file() {
 # 加密密鑰配置（自動生成於 $(date))
 # ===========================================
 NOFX_MASTER_KEY=$MASTER_KEY
-NOFX_RSA_PRIVATE_KEY=$RSA_PRIVATE_KEY
-NOFX_RSA_PUBLIC_KEY=$RSA_PUBLIC_KEY
+NOFX_RSA_PRIVATE_KEY_PATH=$rsa_priv_path
+NOFX_RSA_PUBLIC_KEY_PATH=$rsa_pub_path
 EOF
 
     log_success ".env 文件已更新"
@@ -222,6 +204,12 @@ update_gitignore() {
 verify_config() {
     log_info "驗證配置..."
 
+    if [ -f ".env" ]; then
+        set -a
+        source .env 2>/dev/null || true
+        set +a
+    fi
+
     # 檢查 .env 文件
     if [ ! -f ".env" ]; then
         log_error ".env 文件不存在"
@@ -236,13 +224,16 @@ verify_config() {
         return 1
     fi
 
-    if [ -z "$NOFX_RSA_PRIVATE_KEY" ]; then
-        log_error "NOFX_RSA_PRIVATE_KEY 未設置"
+    local rsa_priv_path="${NOFX_RSA_PRIVATE_KEY_PATH:-$RSA_PRIVATE_PATH}"
+    local rsa_pub_path="${NOFX_RSA_PUBLIC_KEY_PATH:-$RSA_PUBLIC_PATH}"
+
+    if [ ! -f "$rsa_priv_path" ]; then
+        log_error "RSA 私鑰文件不存在: $rsa_priv_path"
         return 1
     fi
 
-    if [ -z "$NOFX_RSA_PUBLIC_KEY" ]; then
-        log_error "NOFX_RSA_PUBLIC_KEY 未設置"
+    if [ ! -f "$rsa_pub_path" ]; then
+        log_error "RSA 公鑰文件不存在: $rsa_pub_path"
         return 1
     fi
 
@@ -285,8 +276,8 @@ print_next_steps() {
     echo "📋 生成的環境變數:"
     echo ""
     echo "  NOFX_MASTER_KEY=${MASTER_KEY:0:20}..."
-    echo "  NOFX_RSA_PRIVATE_KEY=${RSA_PRIVATE_KEY:0:30}..."
-    echo "  NOFX_RSA_PUBLIC_KEY=${RSA_PUBLIC_KEY:0:30}..."
+    echo "  NOFX_RSA_PRIVATE_KEY_PATH=${NOFX_RSA_PRIVATE_KEY_PATH:-$RSA_PRIVATE_PATH}"
+    echo "  NOFX_RSA_PUBLIC_KEY_PATH=${NOFX_RSA_PUBLIC_KEY_PATH:-$RSA_PUBLIC_PATH}"
     echo ""
 }
 
@@ -298,6 +289,21 @@ main() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
 
+    # 預先加載 .env 以便覆蓋默認路徑
+    if [ -f ".env" ]; then
+        set -a
+        source .env 2>/dev/null || true
+        set +a
+    fi
+
+    # 使用 .env 或環境中的自定義路徑
+    if [ -n "$NOFX_RSA_PRIVATE_KEY_PATH" ]; then
+        RSA_PRIVATE_PATH="$NOFX_RSA_PRIVATE_KEY_PATH"
+    fi
+    if [ -n "$NOFX_RSA_PUBLIC_KEY_PATH" ]; then
+        RSA_PUBLIC_PATH="$NOFX_RSA_PUBLIC_KEY_PATH"
+    fi
+
     # 檢查依賴
     check_dependencies
 
@@ -308,11 +314,15 @@ main() {
     local migrated=$(migrate_from_old_version)
 
     # 如果沒有遷移，則生成新密鑰
+    if [ -z "$MASTER_KEY" ] && [ -n "$NOFX_MASTER_KEY" ]; then
+        MASTER_KEY="$NOFX_MASTER_KEY"
+    fi
+
     if [ -z "$MASTER_KEY" ]; then
         MASTER_KEY=$(generate_master_key)
     fi
 
-    if [ -z "$RSA_PRIVATE_KEY" ] || [ -z "$RSA_PUBLIC_KEY" ]; then
+    if [ ! -f "$RSA_PRIVATE_PATH" ] || [ ! -f "$RSA_PUBLIC_PATH" ]; then
         generate_rsa_keys
     fi
 

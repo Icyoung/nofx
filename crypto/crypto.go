@@ -21,7 +21,7 @@ import (
 const (
 	storagePrefix    = "ENC:v1:"
 	storageDelimiter = ":"
-	dataKeyEnvName   = "DATA_ENCRYPTION_KEY"
+	dataKeyEnvName   = "NOFX_MASTER_KEY"
 )
 
 type EncryptedPayload struct {
@@ -48,16 +48,10 @@ type CryptoService struct {
 
 // NewCryptoService 創建加密服務（從環境變數加載 RSA 私鑰）
 func NewCryptoService() (*CryptoService, error) {
-	// 從環境變數加載私鑰
-	privateKeyEnv := os.Getenv("NOFX_RSA_PRIVATE_KEY")
-	if privateKeyEnv == "" {
-		return nil, errors.New("NOFX_RSA_PRIVATE_KEY 環境變數未設置")
-	}
-
-	// Base64 解碼
-	privateKeyPEM, err := base64.StdEncoding.DecodeString(privateKeyEnv)
+	// 從環境變數/檔案加載私鑰
+	privateKeyPEM, err := loadRSAPrivateKeyBytes()
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode NOFX_RSA_PRIVATE_KEY from base64: %w", err)
+		return nil, err
 	}
 
 	// 解析私钥
@@ -104,6 +98,7 @@ func ParseRSAPrivateKeyFromPEM(pemBytes []byte) (*rsa.PrivateKey, error) {
 
 func loadDataKeyFromEnv() ([]byte, error) {
 	keyStr := strings.TrimSpace(os.Getenv(dataKeyEnvName))
+
 	if keyStr == "" {
 		return nil, fmt.Errorf("%s not set", dataKeyEnvName)
 	}

@@ -11,14 +11,14 @@ import (
 func TestEnvVarMasterKeyLoading(t *testing.T) {
 	// 保存原始環境變數
 	originalMasterKey := os.Getenv("NOFX_MASTER_KEY")
-	originalRSAPrivate := os.Getenv("NOFX_RSA_PRIVATE_KEY")
-	originalRSAPublic := os.Getenv("NOFX_RSA_PUBLIC_KEY")
+	originalRSAPrivPath := os.Getenv("NOFX_RSA_PRIVATE_KEY_PATH")
+	originalRSAPubPath := os.Getenv("NOFX_RSA_PUBLIC_KEY_PATH")
 
 	// 測試結束後恢復
 	defer func() {
 		os.Setenv("NOFX_MASTER_KEY", originalMasterKey)
-		os.Setenv("NOFX_RSA_PRIVATE_KEY", originalRSAPrivate)
-		os.Setenv("NOFX_RSA_PUBLIC_KEY", originalRSAPublic)
+		os.Setenv("NOFX_RSA_PRIVATE_KEY_PATH", originalRSAPrivPath)
+		os.Setenv("NOFX_RSA_PUBLIC_KEY_PATH", originalRSAPubPath)
 	}()
 
 	t.Run("有效的32字節主密鑰", func(t *testing.T) {
@@ -102,18 +102,18 @@ func TestEnvVarMasterKeyLoading(t *testing.T) {
 // TestEnvVarRSAKeyLoading 測試 RSA 密鑰環境變數加載
 func TestEnvVarRSAKeyLoading(t *testing.T) {
 	// 保存原始環境變數
-	originalRSAPrivate := os.Getenv("NOFX_RSA_PRIVATE_KEY")
-	originalRSAPublic := os.Getenv("NOFX_RSA_PUBLIC_KEY")
+	originalRSAPrivPath := os.Getenv("NOFX_RSA_PRIVATE_KEY_PATH")
+	originalRSAPubPath := os.Getenv("NOFX_RSA_PUBLIC_KEY_PATH")
 
 	// 測試結束後恢復
 	defer func() {
-		os.Setenv("NOFX_RSA_PRIVATE_KEY", originalRSAPrivate)
-		os.Setenv("NOFX_RSA_PUBLIC_KEY", originalRSAPublic)
+		os.Setenv("NOFX_RSA_PRIVATE_KEY_PATH", originalRSAPrivPath)
+		os.Setenv("NOFX_RSA_PUBLIC_KEY_PATH", originalRSAPubPath)
 	}()
 
 	t.Run("缺少RSA私鑰", func(t *testing.T) {
-		os.Setenv("NOFX_RSA_PRIVATE_KEY", "")
-		os.Setenv("NOFX_RSA_PUBLIC_KEY", "some-public-key")
+		os.Setenv("NOFX_RSA_PRIVATE_KEY_PATH", "")
+		os.Setenv("NOFX_RSA_PUBLIC_KEY_PATH", "")
 
 		em := &EncryptionManager{}
 		err := em.loadOrGenerateRSAKeyPair()
@@ -126,8 +126,11 @@ func TestEnvVarRSAKeyLoading(t *testing.T) {
 	})
 
 	t.Run("缺少RSA公鑰", func(t *testing.T) {
-		os.Setenv("NOFX_RSA_PRIVATE_KEY", "some-private-key")
-		os.Setenv("NOFX_RSA_PUBLIC_KEY", "")
+		tmpDir := t.TempDir()
+		privPath := tmpDir + "/rsa_private.pem"
+		os.WriteFile(privPath, []byte("dummy-priv"), 0600)
+		os.Setenv("NOFX_RSA_PRIVATE_KEY_PATH", privPath)
+		os.Setenv("NOFX_RSA_PUBLIC_KEY_PATH", "")
 
 		em := &EncryptionManager{}
 		err := em.loadOrGenerateRSAKeyPair()
@@ -139,47 +142,56 @@ func TestEnvVarRSAKeyLoading(t *testing.T) {
 		t.Log("✅ 正確處理缺少 RSA 公鑰")
 	})
 
-	t.Run("無效的Base64私鑰", func(t *testing.T) {
-		os.Setenv("NOFX_RSA_PRIVATE_KEY", "not-valid-base64!!!")
-		os.Setenv("NOFX_RSA_PUBLIC_KEY", base64.StdEncoding.EncodeToString([]byte("dummy")))
+	t.Run("無效的私鑰文件", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		privPath := tmpDir + "/rsa_private.pem"
+		pubPath := tmpDir + "/rsa_public.pem"
+		os.WriteFile(privPath, []byte("not-valid-pem"), 0600)
+		os.WriteFile(pubPath, []byte("dummy"), 0600)
+		os.Setenv("NOFX_RSA_PRIVATE_KEY_PATH", privPath)
+		os.Setenv("NOFX_RSA_PUBLIC_KEY_PATH", pubPath)
 
 		em := &EncryptionManager{}
 		err := em.loadOrGenerateRSAKeyPair()
 
 		if err == nil {
-			t.Fatal("無效 Base64 私鑰應該返回錯誤")
+			t.Fatal("無效密鑰應該返回錯誤")
 		}
 
-		t.Log("✅ 正確拒絕無效 Base64 私鑰")
+		t.Log("✅ 正確拒絕無效密鑰文件")
 	})
 }
 
 // TestCryptoServiceEnvLoading 測試 CryptoService 環境變數加載
 func TestCryptoServiceEnvLoading(t *testing.T) {
 	// 保存原始環境變數
-	originalRSAPrivate := os.Getenv("NOFX_RSA_PRIVATE_KEY")
-	originalDataKey := os.Getenv("DATA_ENCRYPTION_KEY")
+	originalMasterKey := os.Getenv("NOFX_MASTER_KEY")
+	originalRSAPrivatePath := os.Getenv("NOFX_RSA_PRIVATE_KEY_PATH")
+	originalRSAPublicPath := os.Getenv("NOFX_RSA_PUBLIC_KEY_PATH")
 
 	// 測試結束後恢復
 	defer func() {
-		os.Setenv("NOFX_RSA_PRIVATE_KEY", originalRSAPrivate)
-		os.Setenv("DATA_ENCRYPTION_KEY", originalDataKey)
+		os.Setenv("NOFX_MASTER_KEY", originalMasterKey)
+		os.Setenv("NOFX_RSA_PRIVATE_KEY_PATH", originalRSAPrivatePath)
+		os.Setenv("NOFX_RSA_PUBLIC_KEY_PATH", originalRSAPublicPath)
 	}()
 
-	t.Run("缺少NOFX_RSA_PRIVATE_KEY", func(t *testing.T) {
-		os.Setenv("NOFX_RSA_PRIVATE_KEY", "")
+	t.Run("缺少NOFX_RSA_PRIVATE_KEY_PATH", func(t *testing.T) {
+		os.Setenv("NOFX_RSA_PRIVATE_KEY_PATH", "")
+		os.Setenv("NOFX_RSA_PUBLIC_KEY_PATH", "")
+		os.Setenv("NOFX_MASTER_KEY", base64.StdEncoding.EncodeToString([]byte("1234567890abcdef1234567890abcdef")))
 
 		_, err := NewCryptoService()
 
 		if err == nil {
-			t.Fatal("缺少 NOFX_RSA_PRIVATE_KEY 應該返回錯誤")
+			t.Fatal("缺少 NOFX_RSA_PRIVATE_KEY_PATH 應該返回錯誤")
 		}
 
-		if !strings.Contains(err.Error(), "NOFX_RSA_PRIVATE_KEY") {
-			t.Fatalf("錯誤訊息應提及 NOFX_RSA_PRIVATE_KEY: %v", err)
+		if !strings.Contains(err.Error(), "RSA") {
+			t.Fatalf("錯誤訊息應提及 RSA 密鑰: %v", err)
 		}
 
-		t.Log("✅ 正確處理缺少 NOFX_RSA_PRIVATE_KEY")
+		t.Log("✅ 正確處理缺少 NOFX_RSA_PRIVATE_KEY_PATH")
 	})
 }
 
@@ -191,7 +203,9 @@ func TestEncryptionWithEnvKeys(t *testing.T) {
 		t.Skip("跳過：NOFX_MASTER_KEY 未設置")
 	}
 
-	if os.Getenv("NOFX_RSA_PRIVATE_KEY") == "" || os.Getenv("NOFX_RSA_PUBLIC_KEY") == "" {
+	hasRSAPriv := os.Getenv("NOFX_RSA_PRIVATE_KEY_PATH") != ""
+	hasRSAPub := os.Getenv("NOFX_RSA_PUBLIC_KEY_PATH") != ""
+	if !hasRSAPriv || !hasRSAPub {
 		t.Skip("跳過：RSA 密鑰未設置")
 	}
 

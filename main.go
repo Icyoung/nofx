@@ -186,7 +186,7 @@ func main() {
 	}
 	defer database.Close()
 
-	// 初始化加密服务（從環境變數 NOFX_RSA_PRIVATE_KEY 加載密鑰）
+	// 初始化加密服务（從環境變數路徑 NOFX_RSA_PRIVATE_KEY_PATH 加載密鑰）
 	log.Printf("🔐 初始化加密服务...")
 	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {

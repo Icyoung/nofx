@@ -102,15 +102,19 @@ check_encryption() {
         need_setup=true
     fi
 
+    # 确定RSA密钥路径
+    local rsa_private_path="${NOFX_RSA_PRIVATE_KEY_PATH:-secrets/rsa_private.pem}"
+    local rsa_public_path="${NOFX_RSA_PUBLIC_KEY_PATH:-secrets/rsa_public.pem}"
+
     # 检查RSA私钥
-    if [ -z "$NOFX_RSA_PRIVATE_KEY" ] && ! grep -q "^NOFX_RSA_PRIVATE_KEY=" .env 2>/dev/null; then
-        print_warning "RSA私钥未配置 (NOFX_RSA_PRIVATE_KEY)"
+    if [ ! -f "$rsa_private_path" ]; then
+        print_warning "RSA私钥未配置或文件不存在 ($rsa_private_path)"
         need_setup=true
     fi
 
     # 检查RSA公钥
-    if [ -z "$NOFX_RSA_PUBLIC_KEY" ] && ! grep -q "^NOFX_RSA_PUBLIC_KEY=" .env 2>/dev/null; then
-        print_warning "RSA公钥未配置 (NOFX_RSA_PUBLIC_KEY)"
+    if [ ! -f "$rsa_public_path" ]; then
+        print_warning "RSA公钥未配置或文件不存在 ($rsa_public_path)"
         need_setup=true
     fi
 
@@ -159,14 +163,14 @@ check_encryption() {
             print_info "  3. 导出公钥: openssl rsa -in rsa_key -pubout -out rsa_key.pub"
             print_info "  4. 添加到 .env："
             print_info "     NOFX_MASTER_KEY=<主密钥>"
-            print_info "     NOFX_RSA_PRIVATE_KEY=\$(base64 -w0 rsa_key)"
-            print_info "     NOFX_RSA_PUBLIC_KEY=\$(base64 -w0 rsa_key.pub)"
+            print_info "     NOFX_RSA_PRIVATE_KEY_PATH=secrets/rsa_private.pem"
+            print_info "     NOFX_RSA_PUBLIC_KEY_PATH=secrets/rsa_public.pem"
             exit 1
         fi
     else
         print_success "🔐 加密环境已配置"
         print_info "  • 主密钥: .env (NOFX_MASTER_KEY)"
-        print_info "  • RSA密钥对: .env (NOFX_RSA_PRIVATE_KEY, NOFX_RSA_PUBLIC_KEY)"
+        print_info "  • RSA密钥对: 文件 (${rsa_private_path}, ${rsa_public_path})"
         print_info "  • JWT认证密钥: .env (JWT_SECRET)"
         print_info "  • 加密算法: RSA-4096 + AES-256-GCM + HS256"
 

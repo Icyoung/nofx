@@ -36,11 +36,11 @@ func main() {
 	}
 
 	// 确保环境变量已设置
-	if os.Getenv("DATA_ENCRYPTION_KEY") == "" {
-		log.Fatalf("迁移失败: DATA_ENCRYPTION_KEY 环境变量未设置")
+	if os.Getenv("NOFX_MASTER_KEY") == "" {
+		log.Fatalf("迁移失败: NOFX_MASTER_KEY 环境变量未设置")
 	}
-	if os.Getenv("NOFX_RSA_PRIVATE_KEY") == "" {
-		log.Fatalf("迁移失败: NOFX_RSA_PRIVATE_KEY 环境变量未设置")
+	if os.Getenv("NOFX_RSA_PRIVATE_KEY_PATH") == "" {
+		log.Fatalf("迁移失败: NOFX_RSA_PRIVATE_KEY_PATH 环境变量未设置")
 	}
 
 	if err := run(*dryRun); err != nil {
@@ -51,8 +51,8 @@ func main() {
 func run(dryRun bool) error {
 	log.SetFlags(0)
 
-	// 從環境變數 NOFX_RSA_PRIVATE_KEY 加載密鑰
-	log.Printf("從環境變數 NOFX_RSA_PRIVATE_KEY 加載 RSA 密鑰...")
+	// 從環境變數路徑加載 RSA 密鑰
+	log.Printf("從環境變數 NOFX_RSA_PRIVATE_KEY_PATH 加載 RSA 密鑰...")
 
 	cryptoService, err := crypto.NewCryptoService()
 	if err != nil {

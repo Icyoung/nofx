@@ -58,18 +58,17 @@ services:
       - ./beta_codes.txt:/app/beta_codes.txt:ro
       - ./decision_logs:/app/decision_logs
       - ./prompts:/app/prompts
-      # 密鑰現在通過環境變數傳遞，不再使用文件掛載
+      - ${NOFX_SECRETS_DIR:-./secrets}:/app/secrets:ro
       - /etc/localtime:/etc/localtime:ro  # Sync host time
       - ./data:/app/data  # Proxy user mapping data
     environment:
       - TZ=${NOFX_TIMEZONE:-Asia/Shanghai}  # Set timezone
       - AI_MAX_TOKENS=4000  # AI响应的最大token数（默认2000，建议4000-8000）
-      - DATA_ENCRYPTION_KEY=${DATA_ENCRYPTION_KEY}  # 数据加密密钥（舊版本兼容，建議使用 NOFX_MASTER_KEY）
       - JWT_SECRET=${JWT_SECRET}  # JWT认证密钥
       # 加密密鑰（必須設置）
       - NOFX_MASTER_KEY=${NOFX_MASTER_KEY}  # 主密鑰 (base64 encoded 32-byte key)
-      - NOFX_RSA_PRIVATE_KEY=${NOFX_RSA_PRIVATE_KEY}  # RSA 私鑰 (base64 encoded PEM)
-      - NOFX_RSA_PUBLIC_KEY=${NOFX_RSA_PUBLIC_KEY}  # RSA 公鑰 (base64 encoded PEM)
+      - NOFX_RSA_PRIVATE_KEY_PATH=${NOFX_RSA_PRIVATE_KEY_PATH:-secrets/rsa_private.pem}  # RSA 私鑰路徑 (PEM)
+      - NOFX_RSA_PUBLIC_KEY_PATH=${NOFX_RSA_PUBLIC_KEY_PATH:-secrets/rsa_public.pem}  # RSA 公鑰路徑 (PEM)
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=${POSTGRES_DB:-nofx}

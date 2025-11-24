@@ -49,6 +49,10 @@ print_skip() {
     ((TESTS_SKIPPED++))
 }
 
+print_warning() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -80,30 +84,28 @@ test_env_vars_set() {
         print_fail "NOFX_MASTER_KEY 未設置"
     fi
 
-    # 檢查 NOFX_RSA_PRIVATE_KEY
-    print_test "檢查 NOFX_RSA_PRIVATE_KEY..."
-    if [ -n "$NOFX_RSA_PRIVATE_KEY" ]; then
-        key_len=${#NOFX_RSA_PRIVATE_KEY}
-        if [ "$key_len" -gt 100 ]; then
-            print_pass "NOFX_RSA_PRIVATE_KEY 已設置 (長度: $key_len 字符)"
+    # 檢查 NOFX_RSA_PRIVATE_KEY_PATH
+    print_test "檢查 NOFX_RSA_PRIVATE_KEY_PATH..."
+    if [ -n "$NOFX_RSA_PRIVATE_KEY_PATH" ]; then
+        if [ -f "$NOFX_RSA_PRIVATE_KEY_PATH" ]; then
+            print_pass "NOFX_RSA_PRIVATE_KEY_PATH 已配置: $NOFX_RSA_PRIVATE_KEY_PATH"
         else
-            print_fail "NOFX_RSA_PRIVATE_KEY 長度異常: $key_len 字符"
+            print_fail "NOFX_RSA_PRIVATE_KEY_PATH 指向的文件不存在: $NOFX_RSA_PRIVATE_KEY_PATH"
         fi
     else
-        print_fail "NOFX_RSA_PRIVATE_KEY 未設置"
+        print_fail "NOFX_RSA_PRIVATE_KEY_PATH 未設置"
     fi
 
-    # 檢查 NOFX_RSA_PUBLIC_KEY
-    print_test "檢查 NOFX_RSA_PUBLIC_KEY..."
-    if [ -n "$NOFX_RSA_PUBLIC_KEY" ]; then
-        key_len=${#NOFX_RSA_PUBLIC_KEY}
-        if [ "$key_len" -gt 100 ]; then
-            print_pass "NOFX_RSA_PUBLIC_KEY 已設置 (長度: $key_len 字符)"
+    # 檢查 NOFX_RSA_PUBLIC_KEY_PATH
+    print_test "檢查 NOFX_RSA_PUBLIC_KEY_PATH..."
+    if [ -n "$NOFX_RSA_PUBLIC_KEY_PATH" ]; then
+        if [ -f "$NOFX_RSA_PUBLIC_KEY_PATH" ]; then
+            print_pass "NOFX_RSA_PUBLIC_KEY_PATH 已配置: $NOFX_RSA_PUBLIC_KEY_PATH"
         else
-            print_fail "NOFX_RSA_PUBLIC_KEY 長度異常: $key_len 字符"
+            print_fail "NOFX_RSA_PUBLIC_KEY_PATH 指向的文件不存在: $NOFX_RSA_PUBLIC_KEY_PATH"
         fi
     else
-        print_fail "NOFX_RSA_PUBLIC_KEY 未設置"
+        print_fail "NOFX_RSA_PUBLIC_KEY_PATH 未設置"
     fi
 }
 
@@ -138,35 +140,27 @@ test_base64_decode() {
     fi
 
     # 驗證 RSA 私鑰格式
-    print_test "驗證 NOFX_RSA_PRIVATE_KEY 格式..."
-    if [ -n "$NOFX_RSA_PRIVATE_KEY" ]; then
-        if decoded=$(echo "$NOFX_RSA_PRIVATE_KEY" | base64 -d 2>/dev/null); then
-            if echo "$decoded" | grep -q "BEGIN.*PRIVATE KEY"; then
-                print_pass "NOFX_RSA_PRIVATE_KEY 格式正確 (PEM 格式)"
-            else
-                print_fail "NOFX_RSA_PRIVATE_KEY 不是有效的 PEM 格式"
-            fi
+    print_test "驗證 NOFX_RSA_PRIVATE_KEY 路徑/格式..."
+    if [ -n "$NOFX_RSA_PRIVATE_KEY_PATH" ]; then
+        if [ -f "$NOFX_RSA_PRIVATE_KEY_PATH" ] && grep -q "BEGIN.*PRIVATE KEY" "$NOFX_RSA_PRIVATE_KEY_PATH"; then
+            print_pass "NOFX_RSA_PRIVATE_KEY_PATH 指向有效 PEM 文件"
         else
-            print_fail "NOFX_RSA_PRIVATE_KEY Base64 解碼失敗"
+            print_fail "NOFX_RSA_PRIVATE_KEY_PATH 文件缺失或格式不正確"
         fi
     else
-        print_skip "NOFX_RSA_PRIVATE_KEY 未設置"
+        print_skip "NOFX_RSA_PRIVATE_KEY_PATH 未設置"
     fi
 
     # 驗證 RSA 公鑰格式
-    print_test "驗證 NOFX_RSA_PUBLIC_KEY 格式..."
-    if [ -n "$NOFX_RSA_PUBLIC_KEY" ]; then
-        if decoded=$(echo "$NOFX_RSA_PUBLIC_KEY" | base64 -d 2>/dev/null); then
-            if echo "$decoded" | grep -q "BEGIN PUBLIC KEY"; then
-                print_pass "NOFX_RSA_PUBLIC_KEY 格式正確 (PEM 格式)"
-            else
-                print_fail "NOFX_RSA_PUBLIC_KEY 不是有效的 PEM 格式"
-            fi
+    print_test "驗證 NOFX_RSA_PUBLIC_KEY 路徑/格式..."
+    if [ -n "$NOFX_RSA_PUBLIC_KEY_PATH" ]; then
+        if [ -f "$NOFX_RSA_PUBLIC_KEY_PATH" ] && grep -q "BEGIN PUBLIC KEY" "$NOFX_RSA_PUBLIC_KEY_PATH"; then
+            print_pass "NOFX_RSA_PUBLIC_KEY_PATH 指向有效 PEM 文件"
         else
-            print_fail "NOFX_RSA_PUBLIC_KEY Base64 解碼失敗"
+            print_fail "NOFX_RSA_PUBLIC_KEY_PATH 文件缺失或格式不正確"
         fi
     else
-        print_skip "NOFX_RSA_PUBLIC_KEY 未設置"
+        print_skip "NOFX_RSA_PUBLIC_KEY_PATH 未設置"
     fi
 }
 
@@ -213,7 +207,7 @@ test_encryption_decryption() {
     fi
 
     # 檢查是否所有密鑰都設置了
-    if [ -z "$NOFX_MASTER_KEY" ] || [ -z "$NOFX_RSA_PRIVATE_KEY" ] || [ -z "$NOFX_RSA_PUBLIC_KEY" ]; then
+    if [ -z "$NOFX_MASTER_KEY" ] || [ -z "$NOFX_RSA_PRIVATE_KEY_PATH" ] || [ -z "$NOFX_RSA_PUBLIC_KEY_PATH" ]; then
         print_skip "跳過加密測試：環境變數未完整設置"
         return
     fi

@@ -24,8 +24,8 @@ NOFX AI 交易系统使用双重加密架构保护敏感数据：
 | 环境变量 | 说明 | 格式 |
 |----------|------|------|
 | `NOFX_MASTER_KEY` | AES-256 主密钥，用于数据库加密 | Base64 编码的 32 字节 |
-| `NOFX_RSA_PRIVATE_KEY` | RSA 私钥，用于解密前端数据 | Base64 编码的 PEM |
-| `NOFX_RSA_PUBLIC_KEY` | RSA 公钥，提供给前端加密 | Base64 编码的 PEM |
+| `NOFX_RSA_PRIVATE_KEY_PATH` | RSA 私钥路径，用于解密前端数据 | 指向 PEM 文件的路径 |
+| `NOFX_RSA_PUBLIC_KEY_PATH` | RSA 公钥路径，提供给前端加密 | 指向 PEM 文件的路径 |
 | `JWT_SECRET` | JWT 认证密钥 | 任意字符串 |
 
 ## 快速开始
@@ -49,28 +49,17 @@ NOFX AI 交易系统使用双重加密架构保护敏感数据：
 openssl rand -base64 32
 
 # 2. 生成 RSA 密钥对
-openssl genrsa -out rsa_key 4096
-openssl rsa -in rsa_key -pubout -out rsa_key.pub
+mkdir -p secrets
+openssl genrsa -out secrets/rsa_private.pem 4096
+openssl rsa -in secrets/rsa_private.pem -pubout -out secrets/rsa_public.pem
 
-# 3. 转换为 base64 格式
-# Linux:
-export NOFX_RSA_PRIVATE_KEY=$(base64 -w0 rsa_key)
-export NOFX_RSA_PUBLIC_KEY=$(base64 -w0 rsa_key.pub)
-
-# macOS:
-export NOFX_RSA_PRIVATE_KEY=$(base64 rsa_key)
-export NOFX_RSA_PUBLIC_KEY=$(base64 rsa_key.pub)
-
-# 4. 添加到 .env 文件
+# 3. 添加到 .env 文件（路径形式）
 cat >> .env << EOF
 NOFX_MASTER_KEY=<主密钥>
-NOFX_RSA_PRIVATE_KEY=<RSA私钥>
-NOFX_RSA_PUBLIC_KEY=<RSA公钥>
+NOFX_RSA_PRIVATE_KEY_PATH=secrets/rsa_private.pem
+NOFX_RSA_PUBLIC_KEY_PATH=secrets/rsa_public.pem
 JWT_SECRET=<JWT密钥>
 EOF
-
-# 5. 删除临时密钥文件
-rm rsa_key rsa_key.pub
 ```
 
 ## 从旧版本迁移
@@ -82,15 +71,10 @@ rm rsa_key rsa_key.pub
 export NOFX_MASTER_KEY=$(cat .secrets/master.key)
 
 # 2. 迁移 RSA 密钥
-# Linux:
-export NOFX_RSA_PRIVATE_KEY=$(base64 -w0 secrets/rsa_key)
-export NOFX_RSA_PUBLIC_KEY=$(base64 -w0 secrets/rsa_key.pub)
+NOFX_RSA_PRIVATE_KEY_PATH=secrets/rsa_key
+NOFX_RSA_PUBLIC_KEY_PATH=secrets/rsa_key.pub
 
-# macOS:
-export NOFX_RSA_PRIVATE_KEY=$(base64 secrets/rsa_key)
-export NOFX_RSA_PUBLIC_KEY=$(base64 secrets/rsa_key.pub)
-
-# 3. 保存到 .env 文件
+# 3. 保存到 .env 文件（使用 *_PATH）
 # 4. 确认服务正常后，删除旧的密钥文件
 ```
 
@@ -103,9 +87,11 @@ services:
   backend:
     environment:
       - NOFX_MASTER_KEY=${NOFX_MASTER_KEY}
-      - NOFX_RSA_PRIVATE_KEY=${NOFX_RSA_PRIVATE_KEY}
-      - NOFX_RSA_PUBLIC_KEY=${NOFX_RSA_PUBLIC_KEY}
+      - NOFX_RSA_PRIVATE_KEY_PATH=${NOFX_RSA_PRIVATE_KEY_PATH}
+      - NOFX_RSA_PUBLIC_KEY_PATH=${NOFX_RSA_PUBLIC_KEY_PATH}
       - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ${NOFX_SECRETS_DIR:-./secrets}:/app/secrets:ro
 ```
 
 ### 启动服务
@@ -120,15 +106,12 @@ docker-compose up -d
 ### 创建 Secret
 
 ```bash
-# 从 .env 文件创建
-kubectl create secret generic nofx-crypto-keys --from-env-file=.env
-
-# 或直接指定
+# 使用文件創建
 kubectl create secret generic nofx-crypto-keys \
   --from-literal=NOFX_MASTER_KEY="<主密钥>" \
-  --from-literal=NOFX_RSA_PRIVATE_KEY="<RSA私钥>" \
-  --from-literal=NOFX_RSA_PUBLIC_KEY="<RSA公钥>" \
-  --from-literal=JWT_SECRET="<JWT密钥>"
+  --from-literal=JWT_SECRET="<JWT密钥>" \
+  --from-file=rsa_private.pem=secrets/rsa_private.pem \
+  --from-file=rsa_public.pem=secrets/rsa_public.pem
 ```
 
 ### Deployment 配置
@@ -146,6 +129,19 @@ spec:
         envFrom:
         - secretRef:
             name: nofx-crypto-keys
+        env:
+        - name: NOFX_RSA_PRIVATE_KEY_PATH
+          value: /app/secrets/rsa_private.pem
+        - name: NOFX_RSA_PUBLIC_KEY_PATH
+          value: /app/secrets/rsa_public.pem
+        volumeMounts:
+        - name: crypto-keys
+          mountPath: /app/secrets
+          readOnly: true
+      volumes:
+      - name: crypto-keys
+        secret:
+          secretName: nofx-crypto-keys
 ```
 
 ## 安全要求
@@ -184,11 +180,15 @@ spec:
 ```bash
 # 检查环境变量是否设置
 echo $NOFX_MASTER_KEY | head -c 20
-echo $NOFX_RSA_PRIVATE_KEY | head -c 30
-echo $NOFX_RSA_PUBLIC_KEY | head -c 30
+echo $NOFX_RSA_PRIVATE_KEY_PATH
+echo $NOFX_RSA_PUBLIC_KEY_PATH
 
 # 验证主密钥长度 (应该约 44 字符)
 echo ${#NOFX_MASTER_KEY}
+
+# 验证RSA文件存在
+ls -l ${NOFX_RSA_PRIVATE_KEY_PATH:-secrets/rsa_private.pem}
+ls -l ${NOFX_RSA_PUBLIC_KEY_PATH:-secrets/rsa_public.pem}
 
 # 启动服务查看日志
 docker-compose logs backend | grep "加密"
